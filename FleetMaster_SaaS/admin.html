@@ -5,113 +5,275 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transport Admin | Cloud Control</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body { margin: 0; font-family: 'Inter', sans-serif; background: #f4f7f6; display: flex; height: 100vh; overflow: hidden; }
         
         /* Dark Sidebar */
-        .sidebar { width: 250px; background: #1a1f24; color: white; display: flex; flex-direction: column; }
+        .sidebar { width: 250px; background: #1a1f24; color: white; display: flex; flex-direction: column; z-index: 10; }
         .logo-area { padding: 25px 20px; font-size: 20px; font-weight: 800; border-bottom: 1px solid #2c3338; color: #00b09b; }
         .nav-menu { padding: 20px 0; list-style: none; margin: 0; }
         .nav-item { padding: 15px 25px; color: #a0aab2; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .nav-item:hover, .nav-item.active { background: #2c3338; color: white; border-left: 4px solid #00b09b; }
         
         /* Main Content */
-        .main-content { flex-grow: 1; padding: 40px; overflow-y: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-        .header h1 { margin: 0; font-size: 28px; color: #2c3e50; }
-        
-        /* Stat Cards */
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 30px 40px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 5; }
+        .header h1 { margin: 0; font-size: 24px; color: #2c3e50; }
+        .admin-badge { background: #e8f8f5; color: #00b09b; padding: 8px 15px; border-radius: 20px; font-weight: 700; font-size: 13px; }
+
+        /* Views */
+        .view-section { padding: 40px; overflow-y: auto; flex-grow: 1; display: none; }
+        .view-section.active { display: block; }
+
+        /* Dashboard View */
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 40px; }
         .stat-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 4px solid #00b09b; }
         .stat-card.alert { border-top-color: #ff416c; }
         .stat-title { color: #7f8c8d; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
         .stat-value { font-size: 32px; font-weight: 800; color: #2c3e50; margin: 0; }
+
+        /* Route Builder View */
+        #route-builder-view { padding: 0; display: none; flex-direction: row; height: 100%; }
+        #route-builder-view.active { display: flex; }
         
-        /* Fleet Table */
-        .table-container { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 25px; }
-        h3 { margin-top: 0; color: #2c3e50; }
-        table { width: 100%; border-collapse: collapse; text-align: left; }
-        th { padding: 15px; border-bottom: 2px solid #ecf0f1; color: #7f8c8d; font-weight: 600; }
-        td { padding: 15px; border-bottom: 1px solid #ecf0f1; color: #2c3e50; font-weight: 500; }
-        .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 800; }
-        .status-live { background: #e8f8f5; color: #00b09b; }
-        .status-offline { background: #fdf2f2; color: #ff416c; }
+        .route-panel { width: 350px; background: white; padding: 30px; box-shadow: 2px 0 15px rgba(0,0,0,0.05); z-index: 2; overflow-y: auto; }
+        .route-panel h2 { margin-top: 0; font-size: 20px; color: #2c3e50; }
+        .route-panel p { color: #7f8c8d; font-size: 13px; line-height: 1.5; margin-bottom: 20px; }
+        
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 12px; font-weight: 700; color: #7f8c8d; margin-bottom: 8px; text-transform: uppercase; }
+        .input-group input, .input-group select { width: 100%; padding: 12px; border: 2px solid #ecf0f1; border-radius: 8px; font-family: 'Inter'; font-size: 14px; box-sizing: border-box; outline: none; }
+        .input-group input:focus, .input-group select:focus { border-color: #00b09b; }
+        
+        #stop-list { margin-bottom: 20px; border: 1px solid #ecf0f1; border-radius: 8px; padding: 10px; min-height: 100px; background: #fdfdfd; }
+        .stop-item { font-size: 13px; padding: 8px; border-bottom: 1px solid #eee; color: #2c3e50; font-weight: 600; display: flex; align-items: center; gap: 10px;}
+        .stop-item:last-child { border-bottom: none; }
+        .stop-badge { background: #3388ff; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+
+        .btn-save { background: linear-gradient(135deg, #00b09b, #96c93d); color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-size: 15px; font-weight: 800; cursor: pointer; transition: 0.2s; font-family: 'Inter'; }
+        .btn-save:active { transform: scale(0.96); }
+        .btn-clear { background: #fdf2f2; color: #ff416c; border: none; padding: 10px; width: 100%; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+
+        #admin-map { flex-grow: 1; z-index: 1; }
+
+        /* 📱 MOBILE RESPONSIVE UPGRADE */
+        @media (max-width: 768px) {
+            body { flex-direction: column; height: auto; overflow-y: auto; }
+            .sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 10px; }
+            .logo-area { border-bottom: none; padding: 10px; width: 100%; text-align: center; }
+            .nav-menu { display: flex; width: 100%; overflow-x: auto; padding: 0; justify-content: center; }
+            .nav-item { padding: 10px 15px; font-size: 13px; white-space: nowrap; }
+            .main-content { overflow: visible; height: auto; }
+            .header { padding: 20px; flex-direction: column; text-align: center; gap: 10px; }
+            .stats-grid { grid-template-columns: 1fr; gap: 15px; }
+            #route-builder-view.active { flex-direction: column; height: 100vh; }
+            .route-panel { width: 100%; box-sizing: border-box; max-height: 40vh; }
+            #admin-map { height: 60vh; width: 100%; }
+        }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <div class="logo-area">🚌 FleetMaster Pro</div>
+        <div class="logo-area">FleetMaster<span>Pro</span></div>
         <ul class="nav-menu">
-            <li class="nav-item active">Dashboard</li>
-            <li class="nav-item">Live Map</li>
-            <li class="nav-item">Route Manager</li>
-            <li class="nav-item">Driver Logs</li>
-            <li class="nav-item">Settings</li>
+            <li class="nav-item active" onclick="switchTab('dashboard', this)">Dashboard</li>
+            <li class="nav-item" onclick="switchTab('route-builder', this)">Route Builder</li>
+            <li class="nav-item" onclick="window.location.href='index.html'">Log Out</li>
         </ul>
     </div>
     
     <div class="main-content">
         <div class="header">
-            <h1>Transport Management Overview</h1>
-            <div style="font-weight: 600; color: #7f8c8d;">Admin: College Management</div>
+            <h1 id="page-title">Transport Overview</h1>
+            <div class="admin-badge">Admin Access</div>
         </div>
         
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-title">Total Fleet</div>
-                <div class="stat-value">12 Buses</div>
+        <div id="dashboard-view" class="view-section active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-title">Total Fleet</div>
+                    <div class="stat-value">20 Buses</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Active Routes</div>
+                    <div class="stat-value" style="color: #00b09b;">0 Routes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Students Tracking</div>
+                    <div class="stat-value">0</div>
+                </div>
+                <div class="stat-card alert">
+                    <div class="stat-title">System Status</div>
+                    <div class="stat-value" style="color: #ff416c;">Setup Reqd</div>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-title">Active Now</div>
-                <div class="stat-value" style="color: #00b09b;">2 Routes</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-title">Students Tracking</div>
-                <div class="stat-value">348</div>
-            </div>
-            <div class="stat-card alert">
-                <div class="stat-title">Speeding Alerts</div>
-                <div class="stat-value" style="color: #ff416c;">0</div>
-            </div>
+            <h3 style="color:#2c3e50;">Welcome to FleetMaster Pro. Please use the Route Builder to set up your first route.</h3>
         </div>
 
-        <div class="table-container">
-            <h3>Live Fleet Status</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Bus ID</th>
-                        <th>Assigned Route</th>
-                        <th>Driver Name</th>
-                        <th>Status</th>
-                        <th>Next Stop ETA</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Bus #1</strong></td>
-                        <td>Kinathukadavu -> Campus</td>
-                        <td>Ramesh K.</td>
-                        <td><span class="status-badge status-live">🟢 LIVE</span></td>
-                        <td>Othakalmandapam (4 mins)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Bus #2</strong></td>
-                        <td>Gandhipuram -> Campus</td>
-                        <td>Suresh M.</td>
-                        <td><span class="status-badge status-offline">⚪ OFFLINE</span></td>
-                        <td>-</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Bus #3</strong></td>
-                        <td>Tiruppur -> Campus</td>
-                        <td>Kumar V.</td>
-                        <td><span class="status-badge status-offline">⚪ OFFLINE</span></td>
-                        <td>-</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div id="route-builder-view" class="view-section">
+            <div class="route-panel">
+                <h2>Create New Route</h2>
+                <p>Click on the map to add bus stops in order. The system will automatically snap the route to the road.</p>
+                
+                <div class="input-group">
+                    <label>Route Name</label>
+                    <input type="text" id="routeName" placeholder="e.g. Kinathukadavu to Campus">
+                </div>
+                <div class="input-group">
+                    <label>Assign Bus ID</label>
+                    <select id="busSelect">
+                        <option value="bus_1">Bus 1 (TN-38-AX-1001)</option>
+                        <option value="bus_2">Bus 2 (TN-38-AX-1002)</option>
+                        <option value="bus_3">Bus 3 (TN-38-AX-1003)</option>
+                    </select>
+                </div>
+
+                <label style="font-size: 12px; font-weight: 700; color: #7f8c8d; text-transform: uppercase;">Stops Added</label>
+                <div id="stop-list">
+                    <div style="color: #a0aab2; font-size: 13px; padding: 10px; text-align: center;">No stops added yet. Click the map!</div>
+                </div>
+
+                <button class="btn-save" onclick="saveRouteToDatabase()">💾 Save Route to Cloud</button>
+                <button class="btn-clear" onclick="clearMap()">🗑️ Clear Map</button>
+            </div>
+            
+            <div id="admin-map"></div>
         </div>
     </div>
+
+    <script>
+        let map;
+        let routeStops = [];
+        let polylineLayer;
+
+        // UI Tab Switching Logic
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId + '-view').classList.add('active');
+            
+            if(tabId === 'dashboard') {
+                document.getElementById('page-title').innerText = "Transport Overview";
+            } else if(tabId === 'route-builder') {
+                document.getElementById('page-title').innerText = "Route Builder Engine";
+                // Leaflet requires a resize trigger when a map goes from hidden to visible
+                setTimeout(() => { if(map) map.invalidateSize(); }, 100);
+                if(!map) initAdminMap();
+            }
+        }
+
+        function initAdminMap() {
+            // Centered on Coimbatore for the college setup
+            map = L.map('admin-map').setView([10.9509, 77.0200], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+            map.on('click', function(e) {
+                let defaultName = routeStops.length === 0 ? "Start Point" : "Stop " + (routeStops.length + 1);
+                let stopName = prompt("Enter official stop name:", defaultName);
+                if (!stopName) return; 
+
+                routeStops.push({ 
+                    id: routeStops.length + 1, 
+                    name: stopName, 
+                    lat: e.latlng.lat, 
+                    lng: e.latlng.lng 
+                });
+
+                L.circleMarker([e.latlng.lat, e.latlng.lng], { radius: 6, color: '#ff416c', fillColor: 'white', fillOpacity: 1 })
+                 .addTo(map).bindPopup(stopName).openPopup();
+
+                updateStopListUI();
+                drawStraightLinesForPreview();
+            });
+        }
+
+        function drawStraightLinesForPreview() {
+            if (polylineLayer) map.removeLayer(polylineLayer);
+            const coords = routeStops.map(s => [s.lat, s.lng]);
+            if (coords.length > 1) {
+                polylineLayer = L.polyline(coords, { color: '#3388ff', weight: 4, dashArray: '8, 8' }).addTo(map);
+            }
+        }
+
+        function updateStopListUI() {
+            const listDiv = document.getElementById('stop-list');
+            listDiv.innerHTML = '';
+            routeStops.forEach((stop, index) => {
+                listDiv.innerHTML += `
+                    <div class="stop-item">
+                        <span class="stop-badge">${index + 1}</span> ${stop.name}
+                    </div>`;
+            });
+        }
+
+        function clearMap() {
+            routeStops = [];
+            updateStopListUI();
+            document.getElementById('stop-list').innerHTML = '<div style="color: #a0aab2; font-size: 13px; padding: 10px; text-align: center;">Map cleared. Click to add stops.</div>';
+            if (map) {
+                map.eachLayer(function (layer) {
+                    if (layer instanceof L.CircleMarker || layer instanceof L.Polyline) {
+                        map.removeLayer(layer);
+                    }
+                });
+            }
+        }
+
+        // --- DATABASE SAVE LOGIC ---
+        async function saveRouteToDatabase() {
+            const rName = document.getElementById('routeName').value;
+            const bId = document.getElementById('busSelect').value;
+
+            if(!rName) { alert("Please enter a Route Name!"); return; }
+            if(routeStops.length < 2) { alert("Please add at least 2 stops to the map!"); return; }
+
+            const finalRouteData = {
+                route_id: bId + "_" + Date.now().toString(), // Unique String ID
+                route_name: rName,
+                assigned_bus: bId,
+                stops: routeStops
+            };
+
+            // Update UI to show loading state
+            const btn = document.querySelector('.btn-save');
+            const originalText = btn.innerText;
+            btn.innerText = "⏳ Saving to AWS Cloud...";
+            btn.style.opacity = "0.7";
+            btn.disabled = true;
+
+            try {
+                // ⚠️ YOUR NEW AWS API URL GOES HERE!
+                const response = await fetch('https://5uu3mdaplqn4qijrktfikfvj6u0pzvbo.lambda-url.ap-south-1.on.aws/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(finalRouteData)
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert("🎉 Success! Route securely saved to DynamoDB.");
+                    document.getElementById('routeName').value = ''; // Clear input
+                    clearMap(); // Reset the map for the next route
+                } else {
+                    alert("⚠️ AWS Error: " + result);
+                }
+            } catch (error) {
+                console.error(error);
+                alert("⚠️ Network Error! Check console. (Note: If this fails, we may need to enable CORS in API Gateway).");
+            } finally {
+                // Reset button UI
+                btn.innerText = originalText;
+                btn.style.opacity = "1";
+                btn.disabled = false;
+            }
+        }
+    </script>
 </body>
 </html>

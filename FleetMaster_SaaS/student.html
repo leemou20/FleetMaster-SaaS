@@ -46,6 +46,18 @@
 
         .custom-bus-icon { font-size: 30px; text-shadow: 0px 4px 10px rgba(0,0,0,0.4); text-align: center; line-height: 30px; }
         .toggle-btn { background: #e0e0e0; border: none; border-radius: 5px; width: 30px; height: 30px; font-weight: bold; cursor: pointer; }
+
+        /* 📱 MOBILE RESPONSIVE UPGRADE */
+        @media (max-width: 600px) {
+            #setup-banner, .status-card, .timeline-card { width: 92%; max-width: none; left: 4%; transform: none; box-sizing: border-box; }
+            #setup-banner { top: 10px; padding: 15px; }
+            .status-card { top: 10px; padding: 10px 15px; }
+            .timeline-card { bottom: 15px; }
+            .timeline-header { padding: 10px 15px; }
+            .status-left { gap: 5px; }
+            .status-time { font-size: 11px; }
+            .eta-badge { font-size: 10px; padding: 4px 8px; }
+        }
     </style>
 </head>
 <body>
@@ -61,7 +73,8 @@
         </select>
 
         <p id="pin-count" style="font-weight:bold; color: #ff416c; margin-top:0;">Stops added: 0</p>
-        <button class="btn-lock" id="lockBtn" onclick="startTrackingMode()">Lock Route & Snap to Roads</button>
+        <button class="btn-lock" id="lockBtn" onclick="startTrackingMode()" style="margin-bottom: 10px;">Lock Route & Snap to Roads</button>
+        <button class="btn-lock" id="cloudBtn" onclick="downloadRouteFromAWS()" style="background: #3388ff;">☁️ Download Route from Cloud</button>
     </div>
 
     <div id="tracking-ui">
@@ -90,8 +103,8 @@
     <div id="map"></div>
 
     <script>
-        // ⚠️ PASTE YOUR MUMBAI GET LAMBDA URL HERE:
-        const baseApiUrl = 'https://solj6hr5civgvolp2mxmaaqxrm0osnxw.lambda-url.ap-south-1.on.aws/'; 
+        // ⚠️ PASTE YOUR BRAND NEW GetLiveGPS LAMBDA URL HERE:
+        const baseApiUrl = 'https://tqsrfu3zkdcvj3qdsb4uyfxfgi0trygr.lambda-url.ap-south-1.on.aws/'; 
         
         let map; let busMarker; let trackingInterval;
         let routeStops = []; let routeCoordinates = []; 
@@ -128,6 +141,63 @@
                 document.getElementById('pin-count').innerText = `Stops added: ${routeStops.length}`;
             });
         }
+
+        // --- NEW CLOUD SYNC ENGINE ---
+        async function downloadRouteFromAWS() {
+            const btn = document.getElementById('cloudBtn');
+            btn.innerText = "⏳ Downloading...";
+            try {
+                // ⚠️ Your specific Lambda "Out Door" URL
+                const res = await fetch('https://dhkoidf5cdfqw6uavdp2hdvisa0pddun.lambda-url.ap-south-1.on.aws/');
+                const responseData = await res.json();
+                
+                // 📦 THE FIX: Unpack the AWS envelope to get the actual array!
+                let allRoutes = responseData;
+                if (responseData.body) {
+                    allRoutes = JSON.parse(responseData.body);
+                } else if (typeof responseData === 'string') {
+                    allRoutes = JSON.parse(responseData);
+                }
+                
+                // 🛡️ THE FILTER: Ignore junk test data! Only keep routes with 2+ stops.
+                const validRoutes = allRoutes.filter(route => route.stops && route.stops.length >= 2);
+                
+                if(validRoutes.length === 0) { 
+                    alert("No valid routes found in database! Go to Admin Dashboard and save one."); 
+                    btn.innerText = "☁️ Download Route from Cloud"; 
+                    return; 
+                }
+                
+                // Grab the very last valid route in the list
+                const cloudRoute = validRoutes[validRoutes.length - 1]; 
+                
+                // Overwrite the local arrays with the cloud data
+                routeStops = cloudRoute.stops;
+                routeCoordinates = [];
+                
+                // Draw the cloud stops on the map
+                routeStops.forEach(stop => {
+                    routeCoordinates.push([stop.lat, stop.lng]);
+                    L.circleMarker([stop.lat, stop.lng], { radius: 6, color: '#3388ff', fillColor: 'white', fillOpacity: 1 })
+                     .addTo(map).bindPopup(stop.name).openPopup();
+                });
+                
+                // Update the UI
+                document.getElementById('pin-count').innerText = `Cloud Route Loaded: ${cloudRoute.route_name}`;
+                btn.innerText = "✅ Route Downloaded";
+                btn.style.background = "#00e676";
+                
+                // Zoom map to fit the downloaded route
+                map.fitBounds(routeCoordinates, { padding: [50, 50] });
+                
+            } catch (e) {
+                console.error(e);
+                alert("Error downloading route from AWS! Check console.");
+                btn.innerText = "☁️ Download Route from Cloud";
+                btn.style.background = "#ff416c";
+            }
+        }
+        // ------------------------------
 
         async function fetchRoadRoute() {
             const coordsString = routeStops.map(s => `${s.lng},${s.lat}`).join(';');
