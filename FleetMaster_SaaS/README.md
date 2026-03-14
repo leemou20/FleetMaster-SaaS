@@ -216,4 +216,73 @@ Here is how the algorithm works in both `student.html` and `admin.html`:
 8. **Step 8:** We take the distance left to the parent's house, divide it by this highly accurate Dynamic Speed, and display the final ETA.
 
 ---
+
+---
+
+## Appendix: Core JavaScript Engines
+
+If you are curious about the actual code powering the physics, telemetry, and safety alerts in the browser, here are the core JavaScript engines used across the FleetMaster Pro ecosystem.
+
+### 1. The Telemetry Broadcaster (Driver App Loop)
+*This is the engine running inside `driver.html` that maintains a permanent connection to space satellites and pushes data to AWS.*
+
+```javascript
+// We ask the phone's GPS to create a permanent, open connection to the satellites
+watchId = navigator.geolocation.watchPosition((position) => { 
+    // Extract exact Latitude and Longitude
+    let lat = position.coords.latitude;
+    let lng = position.coords.longitude;
+    
+    // Fire the data to our AWS Lambda "SaveLiveGPS" function instantly
+    fetch(apiUrl, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ bus_id: "bus_1", lat: lat, lng: lng }) 
+    });
+}, (error) => { console.error("GPS Error:", error); }, 
+{ enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+```
+
+### 2. The AI Radar & Math Engine (Student App)
+*This is the physics math running inside `student.html` that calculates the dynamic ETA without relying on hardcoded speed estimates.*
+
+```javascript
+// 1. Calculate the distance moved since the last ping
+const distMeters = map.distance([lastLat, lastLng], newLatLng);
+
+// 2. Calculate the time difference in hours
+const timeDiffHours = (newPingTime - lastPingTime) / 3600000; 
+
+// 3. Physics: Speed = Distance / Time
+let instantSpeed = (distMeters / 1000) / timeDiffHours;
+
+// 4. Failsafes to prevent GPS glitches from breaking the app
+if (instantSpeed < 3) instantSpeed = 3; // Prevent Infinity ETA at red lights
+if (instantSpeed > 120) instantSpeed = 120; // Prevent supersonic speeds
+
+// 5. Exponential Moving Average for a smooth, jump-free countdown timer
+currentDynamicSpeedKmH = (currentDynamicSpeedKmH * 0.5) + (instantSpeed * 0.5); 
+```
+
+### 3. The Command Center (Admin App)
+*This is the auto-polling engine and safety telemetry running inside `admin.html` that triggers the visual Red Alert.*
+
+```javascript
+// The Auto-Polling Engine (Runs every 5 seconds without refreshing the page)
+window.adminFleetInterval = setInterval(refreshLiveFleet, 5000);
+
+// Inside refreshLiveFleet(): The Red Alert Trigger
+let displaySpeed = Math.round(adminCurrentSpeed);
+
+if (displaySpeed > 60) {
+    // 🚨 Over-speeding detected! Drop the red banner.
+    document.getElementById('safety-alert-banner').style.display = 'block';
+    document.getElementById('admin-live-speed').style.color = '#ff416c';
+} else {
+    // Safe speed. Hide banner.
+    document.getElementById('safety-alert-banner').style.display = 'none';
+    document.getElementById('admin-live-speed').style.color = '#ff9800';
+}
+```
+---
 *Built from scratch. Scaling the future of transport logistics.*
