@@ -79,6 +79,7 @@
         <div class="logo-area">FleetMaster<span>Pro</span></div>
         <ul class="nav-menu">
             <li class="nav-item active" onclick="switchTab('dashboard', this)">Dashboard</li>
+            <li class="nav-item" onclick="switchTab('live-fleet', this)">Live Fleet & Attendance</li>
             <li class="nav-item" onclick="switchTab('route-builder', this)">Route Builder</li>
             <li class="nav-item" onclick="window.location.href='index.html'">Log Out</li>
         </ul>
@@ -112,6 +113,32 @@
             <h3 style="color:#2c3e50;">Welcome to FleetMaster Pro. Please use the Route Builder to set up your first route.</h3>
         </div>
 
+        <div id="live-fleet-view" class="view-section">
+            <div class="stats-grid" style="margin-bottom: 20px;">
+                <div class="stat-card" style="border-top-color: #3388ff;">
+                    <div class="stat-title">Bus 1 GPS Status</div>
+                    <div class="stat-value" id="admin-bus-status" style="font-size: 18px; color: #3388ff;">Waiting...</div>
+                </div>
+                <div class="stat-card" style="border-top-color: #00e676;">
+                    <div class="stat-title">Students Boarded</div>
+                    <div class="stat-value" id="admin-present-count" style="color: #00e676;">0</div>
+                </div>
+                <div class="stat-card" style="border-top-color: #ff416c;">
+                    <div class="stat-title">Students Absent</div>
+                    <div class="stat-value" id="admin-absent-count" style="color: #ff416c;">0</div>
+                </div>
+                <div class="stat-card" style="border-top-color: #ff9800;">
+                    <div class="stat-title">Live Speed</div>
+                    <div class="stat-value" id="admin-live-speed" style="color: #ff9800;">0 km/h</div>
+                </div>
+            </div>
+
+            <div id="safety-alert-banner" style="display:none; background: #ff416c; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 800; text-align: center; box-shadow: 0 4px 15px rgba(255, 65, 108, 0.4);">
+                ⚠️ CRITICAL SAFETY ALERT: BUS 1 IS EXCEEDING THE 60 KM/H SPEED LIMIT!
+            </div>
+
+            <div id="live-fleet-map" style="height: 55vh; width: 100%; border-radius: 12px; border: 2px solid #ecf0f1; z-index: 1;"></div>
+        </div>
         <div id="route-builder-view" class="view-section">
             <div class="route-panel">
                 <h2>Create New Route</h2>
@@ -122,12 +149,13 @@
                     <input type="text" id="routeName" placeholder="e.g. Kinathukadavu to Campus">
                 </div>
                 <div class="input-group">
-                    <label>Assign Bus ID</label>
-                    <select id="busSelect">
-                        <option value="bus_1">Bus 1 (TN-38-AX-1001)</option>
-                        <option value="bus_2">Bus 2 (TN-38-AX-1002)</option>
-                        <option value="bus_3">Bus 3 (TN-38-AX-1003)</option>
-                    </select>
+                    <label>Assign Bus ID / Vehicle Number</label>
+                    <input type="text" id="busSelect" list="bus-options" placeholder="e.g., bus_4 or TN-38-1234">
+                    <datalist id="bus-options">
+                        <option value="bus_1">
+                        <option value="bus_2">
+                        <option value="bus_3">
+                    </datalist>
                 </div>
 
                 <label style="font-size: 12px; font-weight: 700; color: #7f8c8d; text-transform: uppercase;">Stops Added</label>
@@ -158,7 +186,19 @@
             
             if(tabId === 'dashboard') {
                 document.getElementById('page-title').innerText = "Transport Overview";
+                if(window.adminFleetInterval) clearInterval(window.adminFleetInterval);
+            } else if(tabId === 'live-fleet') {
+                document.getElementById('page-title').innerText = "Live Fleet & Attendance (God Mode)";
+                setTimeout(() => { if(liveMap) liveMap.invalidateSize(); }, 200);
+                
+                // 🔄 AUTO-REFRESH ENGINE: Ping database every 5 seconds
+                refreshLiveFleet(); 
+                if(window.adminFleetInterval) clearInterval(window.adminFleetInterval);
+                window.adminFleetInterval = setInterval(refreshLiveFleet, 5000);
+                
             } else if(tabId === 'route-builder') {
+                document.getElementById('page-title').innerText = "Route Builder Engine";
+                if(window.adminFleetInterval) clearInterval(window.adminFleetInterval);
                 document.getElementById('page-title').innerText = "Route Builder Engine";
                 // Leaflet requires a resize trigger when a map goes from hidden to visible
                 setTimeout(() => { if(map) map.invalidateSize(); }, 100);
@@ -274,6 +314,90 @@
                 btn.disabled = false;
             }
         }
+
+        // --- 🚀 LIVE FLEET & ATTENDANCE ENGINE ---
+        // 1. The URL we just made for the Conductor App
+        const ADMIN_GET_STUDENTS_URL = 'https://mp3sdcs26o7o5sakc4x7x2o2mq0vcmur.lambda-url.ap-south-1.on.aws/';
+        
+        // 2. ⚠️ PASTE YOUR GetLiveGPS LAMBDA URL HERE (The one from your Student App)
+        const ADMIN_GET_GPS_URL = 'YOUR_GetLiveGPS_URL_GOES_HERE'; 
+        
+        let liveMap; let liveBusMarker;
+        let adminLastLat = null; let adminLastLng = null; let adminLastPing = null; let adminCurrentSpeed = 0;
+
+        async function refreshLiveFleet() {
+            const statusText = document.getElementById('admin-bus-status');
+            
+            // TASK A: Fetch Attendance from DynamoDB
+            try {
+                const res = await fetch(ADMIN_GET_STUDENTS_URL);
+                const data = await res.json();
+                let students = data.body ? (typeof data.body === 'string' ? JSON.parse(data.body) : data.body) : (typeof data === 'string' ? JSON.parse(data) : data);
+                
+                const present = students.filter(s => s.status === 'present').length;
+                const absent = students.filter(s => s.status === 'absent').length;
+                
+                document.getElementById('admin-present-count').innerText = present;
+                document.getElementById('admin-absent-count').innerText = absent;
+            } catch (e) { console.error("Admin Attendance Error", e); }
+
+            // TASK B: Fetch Live GPS & CALCULATE SPEED
+            try {
+                const res = await fetch(ADMIN_GET_GPS_URL);
+                const data = await res.json();
+                
+                if (data.lat && data.lng) {
+                    const latlng = [data.lat, data.lng];
+                    const newPingTime = new Date(data.timestamp).getTime();
+
+                    // --- 🏎️ SPEED MATH ENGINE ---
+                    if (adminLastLat && adminLastLng && adminLastPing && liveMap) {
+                        const distMeters = liveMap.distance([adminLastLat, adminLastLng], latlng);
+                        const timeDiffHours = (newPingTime - adminLastPing) / 3600000;
+                        if (timeDiffHours > 0 && timeDiffHours < 1) {
+                            let instantSpeed = (distMeters / 1000) / timeDiffHours;
+                            if (instantSpeed > 120) instantSpeed = 120; // Ignore GPS glitches
+                            adminCurrentSpeed = (adminCurrentSpeed * 0.5) + (instantSpeed * 0.5); 
+                        }
+                    }
+                    adminLastLat = data.lat; adminLastLng = data.lng; adminLastPing = newPingTime;
+                    
+                    let displaySpeed = Math.round(adminCurrentSpeed);
+                    document.getElementById('admin-live-speed').innerText = `${displaySpeed} km/h`;
+
+                    // 🚨 RED ALERT TRIGGER (If speed > 60)
+                    if (displaySpeed > 60) {
+                        document.getElementById('safety-alert-banner').style.display = 'block';
+                        document.getElementById('admin-live-speed').style.color = '#ff416c';
+                    } else {
+                        document.getElementById('safety-alert-banner').style.display = 'none';
+                        document.getElementById('admin-live-speed').style.color = '#ff9800';
+                    }
+                    // ----------------------------
+
+                    statusText.innerText = `🟢 LIVE`;
+                    statusText.style.color = "#00e676";
+                    
+                    // Draw or update the Admin Map
+                    if (!liveMap) {
+                        liveMap = L.map('live-fleet-map').setView(latlng, 15);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(liveMap);
+                    } else { liveMap.setView(latlng); }
+                    
+                    if (!liveBusMarker) {
+                        liveBusMarker = L.circleMarker(latlng, { radius: 8, color: '#3388ff', fillColor: '#3388ff', fillOpacity: 1 }).addTo(liveMap).bindPopup("<b>Bus 1</b><br>Currently Active").openPopup();
+                    } else { liveBusMarker.setLatLng(latlng); }
+                } else {
+                    statusText.innerText = "⚪ Offline";
+                    statusText.style.color = "#a0aab2";
+                }
+            } catch (e) { 
+                console.error("Admin GPS Error", e); 
+                statusText.innerText = "⚠️ Connection Lost";
+                statusText.style.color = "#ff416c";
+            }
+        }
+        // -----------------------------------------
     </script>
 </body>
 </html>

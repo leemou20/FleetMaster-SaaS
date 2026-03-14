@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Conductor Portal | FleetMaster</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; margin: 0; background: #f4f7f6; color: #2c3e50; padding-bottom: 80px; }
+        
+        /* Header */
+        .header { background: #1a1f24; color: white; padding: 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header h2 { margin: 0; font-size: 20px; color: #00b09b; }
+        .header p { margin: 5px 0 0; font-size: 13px; color: #a0aab2; }
+        .stats-row { display: flex; justify-content: space-between; margin-top: 15px; background: #2c3338; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: bold; }
+        
+        /* Student Cards (Compact Excel-like List) */
+        .container { padding: 10px 15px; }
+        .stop-header { font-size: 12px; font-weight: 800; color: #7f8c8d; text-transform: uppercase; margin: 15px 0 5px 0; background: #eef2f5; padding: 5px 10px; border-radius: 4px; }
+        
+        .student-card { background: white; border-radius: 8px; padding: 10px; margin-bottom: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid #ccc; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .student-card.present { border-left-color: #00e676; background: #f4fff8; }
+        .student-card.absent { border-left-color: #ff416c; background: #fff4f6; }
+        
+        .card-left { display: flex; flex-direction: column; flex-grow: 1; }
+        .name { font-size: 14px; font-weight: 800; margin: 0 0 2px 0; color: #2c3e50; }
+        .details { font-size: 11px; color: #7f8c8d; margin: 0; }
+        
+        /* Compact Action Buttons */
+        .actions { display: flex; gap: 10px; align-items: center; }
+        .btn-action { width: 44px; height: 44px; border: none; border-radius: 8px; font-weight: bold; font-size: 20px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.1s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .btn-present { background: #f0fdf4; color: #00e676; border: 1px solid #00e676; }
+        .btn-absent { background: #fff0f2; color: #ff416c; border: 1px solid #ff416c; }
+        .btn-call { background: #f8f9fa; color: #3388ff; border: 1px solid #3388ff; font-size: 18px; }
+        
+        .btn-present.active { background: #00e676; color: white; }
+        .btn-absent.active { background: #ff416c; color: white; }
+
+        /* Floating Add Button & Sync Footer */
+        .floating-add { position: fixed; bottom: 85px; right: 20px; background: #3388ff; color: white; width: 50px; height: 50px; border-radius: 25px; font-size: 24px; border: none; box-shadow: 0 4px 15px rgba(51, 136, 255, 0.4); cursor: pointer; z-index: 100; }
+        .footer-sync { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 15px; box-sizing: border-box; box-shadow: 0 -4px 10px rgba(0,0,0,0.05); z-index: 99; }
+        .btn-sync { width: 100%; background: linear-gradient(135deg, #00b09b, #96c93d); color: white; border: none; padding: 15px; border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer; }
+
+        /* Modal for Adding Student */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
+        .modal-content { background: white; width: 85%; padding: 20px; border-radius: 15px; }
+        .modal-content input, .modal-content select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-family: 'Inter'; }
+        .modal-buttons { display: flex; gap: 10px; }
+        .btn-save { flex: 1; background: #3388ff; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; }
+        .btn-cancel { flex: 1; background: #eee; color: #333; border: none; padding: 12px; border-radius: 8px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2>FleetMaster<span>Pro</span></h2>
+        <p>Bus 1 • Morning Route</p>
+        <div class="stats-row">
+            <span id="total-count">Total: 2</span>
+            <span id="present-count" style="color:#00e676;">Present: 0</span>
+            <span id="absent-count" style="color:#ff416c;">Absent: 0</span>
+        </div>
+    </div>
+
+    <div class="container" id="student-list">
+        </div>
+
+    <button class="floating-add" onclick="document.getElementById('addModal').style.display='flex'">+</button>
+
+    <div class="footer-sync">
+        <button class="btn-sync" onclick="syncToAdmin()">☁️ Push Attendance to Admin</button>
+    </div>
+
+    <div class="modal" id="addModal">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">Add New Student</h3>
+            <input type="text" id="new-name" placeholder="Student Name">
+            <input type="text" id="new-roll" placeholder="Roll Number (e.g., CS-101)">
+            <input type="text" id="new-class" placeholder="Class & Section (e.g., 10-A)">
+            <input type="tel" id="new-phone" placeholder="Parent Phone Number">
+            <select id="new-stop">
+                <option value="Stop 1: Mettur Dam">Stop 1: Mettur Dam</option>
+                <option value="Stop 2: Navappatti">Stop 2: Navappatti</option>
+                <option value="Stop 3: Campus">Stop 3: Campus</option>
+            </select>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="document.getElementById('addModal').style.display='none'">Cancel</button>
+                <button class="btn-save" onclick="addStudent()">Save Student</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ⚠️ YOUR NEW AWS DATABASE URLs!
+        const GET_STUDENTS_URL = 'https://mp3sdcs26o7o5sakc4x7x2o2mq0vcmur.lambda-url.ap-south-1.on.aws/';
+        const SAVE_STUDENT_URL = 'https://gwows274vxdiot6pdk32blpevq0zljhg.lambda-url.ap-south-1.on.aws/';
+
+        let students = []; // Starts empty! The cloud will fill this.
+
+        // 1. Download Students from AWS on Startup
+        async function loadStudentsFromCloud() {
+            document.getElementById('student-list').innerHTML = '<div style="text-align:center; padding: 20px; color:#7f8c8d;">⏳ Loading students from AWS...</div>';
+            try {
+                const response = await fetch(GET_STUDENTS_URL);
+                const data = await response.json();
+                
+                // Unpack the AWS envelope
+                let cloudStudents = data;
+                if (data.body) {
+                    cloudStudents = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
+                } else if (typeof data === 'string') {
+                    cloudStudents = JSON.parse(data);
+                }
+
+                // Ensure every downloaded student defaults to "unmarked" for today's attendance
+                students = cloudStudents.map(s => ({...s, status: s.status || 'unmarked'}));
+                
+                renderStudents(); // Draw them on the screen!
+            } catch (error) {
+                console.error(error);
+                document.getElementById('student-list').innerHTML = '<div style="text-align:center; padding: 20px; color:#ff416c;">⚠️ Failed to connect to database.</div>';
+            }
+        }
+
+        // 2. Render the UI (Your highly-optimized mobile view!)
+        function renderStudents() {
+            const container = document.getElementById('student-list');
+            container.innerHTML = '';
+            
+            if (students.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding: 20px; color:#a0aab2;">No students found. Click + to add some!</div>';
+                updateStats();
+                return;
+            }
+
+            // Group students by Stop
+            const stops = [...new Set(students.map(s => s.stop))];
+            
+            stops.forEach(stop => {
+                container.innerHTML += `<div class="stop-header">📍 ${stop}</div>`;
+                
+                const studentsAtStop = students.filter(s => s.stop === stop);
+                studentsAtStop.forEach(student => {
+                    let pClass = student.status === 'present' ? 'active' : '';
+                    let aClass = student.status === 'absent' ? 'active' : '';
+                    
+                    // Note: We use student.roll as the unique ID now
+                    container.innerHTML += `
+                        <div class="student-card ${student.status}" id="card-${student.roll}">
+                            <div class="card-left">
+                                <span class="name">${student.name} <span style="font-size:10px; color:#a0aab2; font-weight:normal; margin-left: 5px;">(${student.roll})</span></span>
+                                <span class="details">${student.class}</span>
+                            </div>
+                            <div class="actions">
+                                <button class="btn-action btn-present ${pClass}" onclick="markStatus('${student.roll}', 'present')">✓</button>
+                                <button class="btn-action btn-absent ${aClass}" onclick="markStatus('${student.roll}', 'absent')">✗</button>
+                                <button class="btn-action btn-call" onclick="window.location.href='tel:${student.phone}'">📞</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            });
+            updateStats();
+        }
+
+        // 3. Handle Attendance Clicks
+        function markStatus(rollNumber, status) {
+            const student = students.find(s => s.roll === rollNumber);
+            if (student) {
+                student.status = status;
+                renderStudents(); // Re-draw UI
+            }
+        }
+
+        // 4. Update the Top Counter
+        function updateStats() {
+            const present = students.filter(s => s.status === 'present').length;
+            const absent = students.filter(s => s.status === 'absent').length;
+            document.getElementById('total-count').innerText = `Total: ${students.length}`;
+            document.getElementById('present-count').innerText = `Present: ${present}`;
+            document.getElementById('absent-count').innerText = `Absent: ${absent}`;
+        }
+
+        // 5. Add New Student & Push to AWS
+        async function addStudent() {
+            const name = document.getElementById('new-name').value;
+            const roll = document.getElementById('new-roll').value;
+            const cls = document.getElementById('new-class').value;
+            const phone = document.getElementById('new-phone').value;
+            const stop = document.getElementById('new-stop').value;
+
+            if(!name || !roll) { alert("Name and Roll Number are required!"); return; }
+
+            const newStudent = {
+                name: name, roll: roll, class: cls, phone: phone, stop: stop, status: "unmarked"
+            };
+
+            // Hide modal and update UI immediately so it feels fast
+            document.getElementById('addModal').style.display = 'none';
+            students.push(newStudent);
+            renderStudents();
+
+            // Clear inputs for next time
+            document.getElementById('new-name').value = '';
+            document.getElementById('new-roll').value = '';
+            document.getElementById('new-class').value = '';
+            document.getElementById('new-phone').value = '';
+
+            // ☁️ FIRE THE DATA INTO AWS IN THE BACKGROUND
+            try {
+                await fetch(SAVE_STUDENT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newStudent)
+                });
+                console.log("Student permanently saved to AWS!");
+            } catch (error) {
+                console.error("AWS Save Error:", error);
+                alert("⚠️ Saved locally, but failed to push to cloud. Check internet.");
+            }
+        }
+
+        // 6. Push Final Attendance to Admin
+        async function syncToAdmin() {
+            const unmarked = students.filter(s => s.status === 'unmarked').length;
+            if (unmarked > 0) {
+                const proceed = confirm(`You still have ${unmarked} students unmarked. Do you want to submit anyway?`);
+                if(!proceed) return;
+            }
+            
+            const btn = document.querySelector('.btn-sync');
+            btn.innerText = "⏳ Pushing to AWS...";
+            btn.style.opacity = "0.7";
+
+            try {
+                // Loop through every student and update their Present/Absent status in AWS
+                for (const student of students) {
+                    await fetch(SAVE_STUDENT_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(student)
+                    });
+                }
+                
+                alert("🎉 Success! Attendance securely synced to Cloud.");
+            } catch (error) {
+                console.error("Sync Error:", error);
+                alert("⚠️ Error syncing attendance to cloud. Check console.");
+            } finally {
+                btn.innerText = "☁️ Push Attendance to Admin";
+                btn.style.opacity = "1";
+            }
+        }
+
+        // Boot up the engine!
+        loadStudentsFromCloud();
+    </script>
+</body>
+</html>
