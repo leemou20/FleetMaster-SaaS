@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Driver Console | Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; margin: 0; background-color: #121212; color: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
+        .card { background: #1e1e1e; padding: 40px 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 85%; max-width: 400px; }
+        h1 { margin: 0 0 5px 0; font-size: 28px; font-weight: 800; }
+        p { color: #a0a0a0; margin-bottom: 30px; font-size: 14px; }
+        .btn { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; padding: 20px; width: 100%; border: none; border-radius: 15px; cursor: pointer; text-transform: uppercase; transition: 0.2s;}
+        .btn:active { transform: scale(0.95); }
+        #startBtn { background: linear-gradient(135deg, #00b09b, #96c93d); color: white; }
+        #stopBtn { background: linear-gradient(135deg, #ff416c, #ff4b2b); color: white; display: none; }
+        #status-container { margin-top: 30px; padding: 15px; background: #2a2a2a; border-radius: 12px; border-left: 5px solid #00b09b; }
+        #status { font-size: 14px; color: #d0d0d0; font-weight: 600; line-height: 1.5; }
+        .warning { color: #ff9800; font-size: 12px; margin-top: 15px; display: block; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Driver Console</h1>
+        <p>Testing Mode: <strong>Bus 1</strong></p>
+
+        <button id="startBtn" class="btn" onclick="startTracking()">Start Trip</button>
+        <button id="stopBtn" class="btn" onclick="stopTracking()">End Trip</button>
+        
+        <div id="status-container">
+            <div id="status">System Ready. Waiting to start...</div>
+        </div>
+        
+        <span class="warning">⚠️ Ensure your phone's GPS/Location is turned ON before starting.</span>
+    </div>
+
+    <script>
+        // ⚠️ PASTE YOUR MUMBAI POST LAMBDA URL HERE:
+        const apiUrl = 'https://wx63w5aizedmt5kkqznzekpjfa0mujlb.lambda-url.ap-south-1.on.aws/';
+        
+        let watchId = null; // This will hold our GPS Watcher
+
+        function sendLocationToServer(lat, lng) {
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ bus_id: "bus_1", lat: lat, lng: lng }) 
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('status').innerHTML = `<span style="color:#00b09b">🟢 LIVE</span><br>Lat: ${lat.toFixed(5)} | Lng: ${lng.toFixed(5)}<br>Transmitting seamlessly...`;
+            })
+            .catch(error => { 
+                document.getElementById('status').innerHTML = `<span style="color:#ff416c">⚠️ Network error! Retrying...</span>`; 
+            });
+        }
+
+        function startTracking() {
+            // 1. Check if browser supports GPS
+            if (!navigator.geolocation) {
+                document.getElementById('status').innerText = "GPS not supported on this browser!";
+                return;
+            }
+
+            // 2. Update UI
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('stopBtn').style.display = 'inline-block';
+            document.getElementById('status-container').style.borderLeftColor = "#ff416c";
+            document.getElementById('status').innerText = "Acquiring GPS Lock... Please click Allow.";
+
+            // 3. Start the seamless Watcher (Only asks for permission ONCE)
+            watchId = navigator.geolocation.watchPosition(
+                // Success Callback
+                (position) => { 
+                    document.getElementById('status-container').style.borderLeftColor = "#00b09b";
+                    sendLocationToServer(position.coords.latitude, position.coords.longitude); 
+                },
+                // Error Callback
+                (error) => { 
+                    let errorMsg = "GPS Error!";
+                    if(error.code === 1) errorMsg = "Permission denied. Please allow location.";
+                    if(error.code === 2) errorMsg = "Position unavailable. Are you indoors?";
+                    document.getElementById('status').innerText = errorMsg; 
+                },
+                // Settings
+                { 
+                    enableHighAccuracy: true, 
+                    maximumAge: 0, 
+                    timeout: 10000 
+                }
+            );
+        }
+
+        function stopTracking() {
+            // 1. Kill the GPS Watcher immediately
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+
+            // 2. Update UI
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('stopBtn').style.display = 'none';
+            document.getElementById('status-container').style.borderLeftColor = "#757575";
+            document.getElementById('status').innerHTML = `<span style="color:#a0a0a0">⚪ Offline. Trip ended.</span>`;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transport Admin | Cloud Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; font-family: 'Inter', sans-serif; background: #f4f7f6; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Dark Sidebar */
+        .sidebar { width: 250px; background: #1a1f24; color: white; display: flex; flex-direction: column; }
+        .logo-area { padding: 25px 20px; font-size: 20px; font-weight: 800; border-bottom: 1px solid #2c3338; color: #00b09b; }
+        .nav-menu { padding: 20px 0; list-style: none; margin: 0; }
+        .nav-item { padding: 15px 25px; color: #a0aab2; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .nav-item:hover, .nav-item.active { background: #2c3338; color: white; border-left: 4px solid #00b09b; }
+        
+        /* Main Content */
+        .main-content { flex-grow: 1; padding: 40px; overflow-y: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .header h1 { margin: 0; font-size: 28px; color: #2c3e50; }
+        
+        /* Stat Cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 40px; }
+        .stat-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 4px solid #00b09b; }
+        .stat-card.alert { border-top-color: #ff416c; }
+        .stat-title { color: #7f8c8d; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .stat-value { font-size: 32px; font-weight: 800; color: #2c3e50; margin: 0; }
+        
+        /* Fleet Table */
+        .table-container { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 25px; }
+        h3 { margin-top: 0; color: #2c3e50; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 15px; border-bottom: 2px solid #ecf0f1; color: #7f8c8d; font-weight: 600; }
+        td { padding: 15px; border-bottom: 1px solid #ecf0f1; color: #2c3e50; font-weight: 500; }
+        .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 800; }
+        .status-live { background: #e8f8f5; color: #00b09b; }
+        .status-offline { background: #fdf2f2; color: #ff416c; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo-area">🚌 FleetMaster Pro</div>
+        <ul class="nav-menu">
+            <li class="nav-item active">Dashboard</li>
+            <li class="nav-item">Live Map</li>
+            <li class="nav-item">Route Manager</li>
+            <li class="nav-item">Driver Logs</li>
+            <li class="nav-item">Settings</li>
+        </ul>
+    </div>
+    
+    <div class="main-content">
+        <div class="header">
+            <h1>Transport Management Overview</h1>
+            <div style="font-weight: 600; color: #7f8c8d;">Admin: College Management</div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-title">Total Fleet</div>
+                <div class="stat-value">12 Buses</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Active Now</div>
+                <div class="stat-value" style="color: #00b09b;">2 Routes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Students Tracking</div>
+                <div class="stat-value">348</div>
+            </div>
+            <div class="stat-card alert">
+                <div class="stat-title">Speeding Alerts</div>
+                <div class="stat-value" style="color: #ff416c;">0</div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h3>Live Fleet Status</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Bus ID</th>
+                        <th>Assigned Route</th>
+                        <th>Driver Name</th>
+                        <th>Status</th>
+                        <th>Next Stop ETA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Bus #1</strong></td>
+                        <td>Kinathukadavu -> Campus</td>
+                        <td>Ramesh K.</td>
+                        <td><span class="status-badge status-live">🟢 LIVE</span></td>
+                        <td>Othakalmandapam (4 mins)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Bus #2</strong></td>
+                        <td>Gandhipuram -> Campus</td>
+                        <td>Suresh M.</td>
+                        <td><span class="status-badge status-offline">⚪ OFFLINE</span></td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Bus #3</strong></td>
+                        <td>Tiruppur -> Campus</td>
+                        <td>Kumar V.</td>
+                        <td><span class="status-badge status-offline">⚪ OFFLINE</span></td>
+                        <td>-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
