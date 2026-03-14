@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FleetMaster Pro | Secure Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #f4f7f6 0%, #e0eafc 100%); display: flex; align-items: center; justify-content: center; height: 100vh; }
+        
+        .login-card { background: #ffffff; padding: 40px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 85%; max-width: 400px; text-align: center; }
+        
+        .logo { font-size: 28px; font-weight: 800; color: #2c3e50; margin-bottom: 10px; }
+        .logo span { color: #00b09b; }
+        .subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 30px; }
+
+        .role-selector { display: flex; gap: 10px; margin-bottom: 25px; background: #f8f9fa; padding: 5px; border-radius: 12px; }
+        .role-btn { flex: 1; padding: 10px; border: none; background: transparent; border-radius: 8px; font-family: 'Inter'; font-weight: 600; font-size: 14px; color: #7f8c8d; cursor: pointer; transition: 0.3s; }
+        .role-btn.active { background: #ffffff; color: #2c3e50; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-group label { display: block; font-size: 12px; font-weight: 700; color: #7f8c8d; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .input-group input { width: 100%; padding: 15px; border: 2px solid #ecf0f1; border-radius: 12px; font-family: 'Inter'; font-size: 15px; box-sizing: border-box; transition: 0.3s; outline: none; }
+        .input-group input:focus { border-color: #00b09b; }
+
+        .btn-login { background: linear-gradient(135deg, #00b09b, #96c93d); color: white; border: none; padding: 16px; width: 100%; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer; transition: 0.2s; font-family: 'Inter'; box-shadow: 0 8px 20px rgba(0, 176, 155, 0.3); }
+        .btn-login:active { transform: scale(0.96); }
+        .btn-login:hover { box-shadow: 0 10px 25px rgba(0, 176, 155, 0.4); }
+
+        .footer-text { margin-top: 25px; font-size: 12px; color: #a0aab2; }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="logo">FleetMaster<span>Pro</span></div>
+        <div class="subtitle">Enterprise Fleet Management</div>
+
+        <div class="role-selector">
+            <button class="role-btn active" onclick="selectRole('student', this)">Parent/Student</button>
+            <button class="role-btn" onclick="selectRole('driver', this)">Driver</button>
+            <button class="role-btn" onclick="selectRole('admin', this)">Admin</button>
+        </div>
+
+        <div class="input-group">
+            <label id="user-label">Roll Number / User ID</label>
+            <input type="text" id="username" placeholder="Enter your ID" autocomplete="off">
+        </div>
+        <div class="input-group">
+            <label>Password / Secure PIN</label>
+            <input type="password" id="password" placeholder="Enter your password">
+        </div>
+
+        <button class="btn-login" onclick="handleLogin()">Secure Login</button>
+
+        <div class="footer-text">Protected by AES-256 Encryption</div>
+    </div>
+
+    <script>
+        let currentRole = 'student';
+
+        // UI Logic to switch tabs
+        function selectRole(role, element) {
+            currentRole = role;
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            element.classList.add('active');
+
+            // Change the label based on role
+            const label = document.getElementById('user-label');
+            if(role === 'student') label.innerText = 'Roll Number / Parent Phone';
+            if(role === 'driver') label.innerText = 'Driver ID';
+            if(role === 'admin') label.innerText = 'Admin Email';
+        }
+
+        // Routing Logic (Mock Authentication for now)
+        function handleLogin() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+
+            if(!user || !pass) {
+                alert("Please enter credentials!");
+                return;
+            }
+
+            // Route based on selected role
+            if (currentRole === 'student') {
+                window.location.href = 'index.html';
+            } else if (currentRole === 'driver') {
+                window.location.href = 'driver.html';
+            } else if (currentRole === 'admin') {
+                window.location.href = 'admin.html';
+            }
+        }
+    </script>
+</body>
+</html>
