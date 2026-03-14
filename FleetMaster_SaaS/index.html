@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FleetMaster Pro | Secure Login</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/amazon-cognito-identity-js@6.3.12/dist/amazon-cognito-identity.min.js"></script>
+
     <style>
         body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #f4f7f6 0%, #e0eafc 100%); display: flex; align-items: center; justify-content: center; height: 100vh; }
-        
         .login-card { background: #ffffff; padding: 40px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 85%; max-width: 400px; text-align: center; }
-        
         .logo { font-size: 28px; font-weight: 800; color: #2c3e50; margin-bottom: 10px; }
         .logo span { color: #00b09b; }
         .subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 30px; }
@@ -25,8 +26,8 @@
 
         .btn-login { background: linear-gradient(135deg, #00b09b, #96c93d); color: white; border: none; padding: 16px; width: 100%; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer; transition: 0.2s; font-family: 'Inter'; box-shadow: 0 8px 20px rgba(0, 176, 155, 0.3); }
         .btn-login:active { transform: scale(0.96); }
-        .btn-login:hover { box-shadow: 0 10px 25px rgba(0, 176, 155, 0.4); }
-
+        
+        #error-msg { color: #ff416c; font-size: 13px; font-weight: 600; margin-top: 15px; display: none; }
         .footer-text { margin-top: 25px; font-size: 12px; color: #a0aab2; }
     </style>
 </head>
@@ -37,7 +38,7 @@
         <div class="subtitle">Enterprise Fleet Management</div>
 
         <div class="role-selector">
-            <button class="role-btn active" onclick="selectRole('student', this)">Parent/Student</button>
+            <button class="role-btn active" onclick="selectRole('student', this)">Parent</button>
             <button class="role-btn" onclick="selectRole('driver', this)">Driver</button>
             <button class="role-btn" onclick="selectRole('admin', this)">Admin</button>
         </div>
@@ -51,48 +52,99 @@
             <input type="password" id="password" placeholder="Enter your password">
         </div>
 
-        <button class="btn-login" onclick="handleLogin()">Secure Login</button>
+        <button class="btn-login" id="loginBtn" onclick="handleLogin()">Secure Login</button>
+        <div id="error-msg"></div>
 
-        <div class="footer-text">Protected by AES-256 Encryption</div>
+        <div class="footer-text">Protected by AWS Cognito 256-bit Encryption</div>
     </div>
 
     <script>
+        // 1. Initialize AWS Cognito with your specific vault keys!
+        const poolData = {
+            UserPoolId: 'ap-south-1_85QWmt7XM', 
+            ClientId: '3ef9jhgmjb8i567spiac9l3rj5'
+        };
+        const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
         let currentRole = 'student';
 
-        // UI Logic to switch tabs
+        // 2. UI Tab Switching Logic
         function selectRole(role, element) {
             currentRole = role;
-            
-            // Remove active class from all buttons
             document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
-            // Add active class to clicked button
             element.classList.add('active');
-
-            // Change the label based on role
             const label = document.getElementById('user-label');
             if(role === 'student') label.innerText = 'Roll Number / Parent Phone';
             if(role === 'driver') label.innerText = 'Driver ID';
             if(role === 'admin') label.innerText = 'Admin Email';
         }
 
-        // Routing Logic (Mock Authentication for now)
+        // 3. The Secure Authentication Engine
         function handleLogin() {
-            const user = document.getElementById('username').value;
+            const user = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value;
+            const errorDiv = document.getElementById('error-msg');
+            const btn = document.getElementById('loginBtn');
 
             if(!user || !pass) {
-                alert("Please enter credentials!");
+                errorDiv.innerText = "Please enter both ID and Password.";
+                errorDiv.style.display = "block";
                 return;
             }
 
-            // Route based on selected role
-            if (currentRole === 'student') {
-                window.location.href = 'student.html';
-            } else if (currentRole === 'driver') {
-                window.location.href = 'driver.html';
-            } else if (currentRole === 'admin') {
-                window.location.href = 'admin.html';
-            }
+            // Update UI to show loading
+            btn.innerText = "Authenticating...";
+            btn.style.opacity = "0.7";
+            errorDiv.style.display = "none";
+
+            // Package the credentials for AWS
+            const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: user, Password: pass });
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser({ Username: user, Pool: userPool });
+
+            // Send to AWS
+            cognitoUser.authenticateUser(authenticationDetails, {
+                onSuccess: function (result) {
+                    // 🎉 PASSWORD CORRECT! Route them to the right page.
+                    if (currentRole === 'student') window.location.href = 'student.html';
+                    else if (currentRole === 'driver') window.location.href = 'driver.html';
+                    else if (currentRole === 'admin') window.location.href = 'admin.html';
+                },
+                onFailure: function(err) {
+                    // ❌ PASSWORD WRONG or USER DOESN'T EXIST
+                    btn.innerText = "Secure Login";
+                    btn.style.opacity = "1";
+                    errorDiv.innerText = err.message || "Invalid credentials. Please try again.";
+                    errorDiv.style.display = "block";
+                },
+                newPasswordRequired: function(userAttributes, requiredAttributes) {
+                    // ⚠️ THE FIRST-LOGIN GOTCHA HANDLER (NOW WITH 'NAME' FIX)
+                    const newPass = prompt("First Login Detected!\nPlease set a new permanent password:");
+                    if (!newPass) {
+                        btn.innerText = "Secure Login";
+                        btn.style.opacity = "1";
+                        errorDiv.innerText = "Password change cancelled.";
+                        errorDiv.style.display = "block";
+                        return;
+                    }
+
+                    // Ask for the missing required attribute: Name!
+                    const fullName = prompt("Please enter your Full Name:");
+                    if (!fullName) {
+                        btn.innerText = "Secure Login";
+                        btn.style.opacity = "1";
+                        errorDiv.innerText = "Name is required to complete registration.";
+                        errorDiv.style.display = "block";
+                        return;
+                    }
+
+                    // Package the missing attributes
+                    const attributesData = {
+                        name: fullName
+                    };
+
+                    // Send the new password AND the name back to AWS
+                    cognitoUser.completeNewPasswordChallenge(newPass, attributesData, this);
+                }
+            });
         }
     </script>
 </body>
