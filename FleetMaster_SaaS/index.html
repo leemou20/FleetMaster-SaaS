@@ -3,330 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Live Tracker | Dynamic AI Speed</title>
+    <title>FleetMaster Pro | Secure Login</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background: #e0e0e0; overflow: hidden; }
-        #map { height: 100vh; width: 100vw; z-index: 1; cursor: crosshair; }
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #f4f7f6 0%, #e0eafc 100%); display: flex; align-items: center; justify-content: center; height: 100vh; }
         
-        /* SETUP MODE BANNER */
-        #setup-banner { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); z-index: 2000; background: #fff; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; width: 85%; max-width: 350px; border: 2px solid #3388ff;}
-        #setup-banner h3 { margin: 0 0 10px 0; color: #3388ff; }
-        #setup-banner p { margin: 0 0 15px 0; font-size: 13px; color: #555; }
-        .vehicle-select { width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 8px; font-weight: bold; font-family: 'Inter'; border: 1px solid #ccc; }
-        .btn-lock { background: #00b09b; color: white; border: none; padding: 12px 20px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; }
-
-        /* TRACKING MODE UI */
-        #tracking-ui { display: none; }
-        .status-card { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); z-index: 1000; background: white; padding: 15px 20px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: space-between; width: 85%; max-width: 350px; }
-        .status-left { display: flex; align-items: center; gap: 10px; }
-        .status-dot { height: 10px; width: 10px; background-color: #ff9800; border-radius: 50%; }
-        .status-dot.live { background-color: #00e676; box-shadow: 0 0 8px #00e676; }
-        .status-dot.offline { background-color: #ff416c; box-shadow: 0 0 8px #ff416c; }
-        .status-time { font-size: 13px; color: #555; margin: 0; font-weight: 700;}
-        .eta-badge { background: #e8f8f5; color: #00b09b; padding: 5px 10px; border-radius: 8px; font-weight: 800; font-size: 12px; border: 1px solid #00b09b; text-align: right; }
-        .speed-badge { background: #fff3e0; color: #e65100; font-size: 10px; padding: 2px 6px; border-radius: 4px; display: block; margin-top: 4px; }
-
-        /* TIMELINE */
-        .timeline-card { position: absolute; bottom: 30px; left: 5%; z-index: 1000; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 90%; max-width: 350px; border: 1px solid #e0e0e0; display: flex; flex-direction: column; max-height: 50vh; }
-        .timeline-header { padding: 15px; background: #f8f9fa; border-top-left-radius: 15px; border-top-right-radius: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; cursor: grab;}
-        .timeline-header:active { cursor: grabbing; }
-        .timeline-title { margin: 0; font-size: 14px; font-weight: 700; color: #333; }
-        #timeline-content { padding: 15px; overflow-y: auto; }
+        .login-card { background: #ffffff; padding: 40px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 85%; max-width: 400px; text-align: center; }
         
-        .stop-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 13px; font-weight: 600; color: #555; }
-        .stop-left { display: flex; align-items: center; gap: 10px; }
-        .stop-eta { font-size: 11px; background: #f0f0f0; padding: 3px 6px; border-radius: 4px; color: #666; }
-        
-        .passed { color: #a0a0a0; text-decoration: line-through; }
-        .current { color: #00b09b; font-weight: 800; font-size: 14px; }
-        .upcoming { color: #222; }
+        .logo { font-size: 28px; font-weight: 800; color: #2c3e50; margin-bottom: 10px; }
+        .logo span { color: #00b09b; }
+        .subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 30px; }
 
-        .custom-bus-icon { font-size: 30px; text-shadow: 0px 4px 10px rgba(0,0,0,0.4); text-align: center; line-height: 30px; }
-        .toggle-btn { background: #e0e0e0; border: none; border-radius: 5px; width: 30px; height: 30px; font-weight: bold; cursor: pointer; }
+        .role-selector { display: flex; gap: 10px; margin-bottom: 25px; background: #f8f9fa; padding: 5px; border-radius: 12px; }
+        .role-btn { flex: 1; padding: 10px; border: none; background: transparent; border-radius: 8px; font-family: 'Inter'; font-weight: 600; font-size: 14px; color: #7f8c8d; cursor: pointer; transition: 0.3s; }
+        .role-btn.active { background: #ffffff; color: #2c3e50; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-group label { display: block; font-size: 12px; font-weight: 700; color: #7f8c8d; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .input-group input { width: 100%; padding: 15px; border: 2px solid #ecf0f1; border-radius: 12px; font-family: 'Inter'; font-size: 15px; box-sizing: border-box; transition: 0.3s; outline: none; }
+        .input-group input:focus { border-color: #00b09b; }
+
+        .btn-login { background: linear-gradient(135deg, #00b09b, #96c93d); color: white; border: none; padding: 16px; width: 100%; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer; transition: 0.2s; font-family: 'Inter'; box-shadow: 0 8px 20px rgba(0, 176, 155, 0.3); }
+        .btn-login:active { transform: scale(0.96); }
+        .btn-login:hover { box-shadow: 0 10px 25px rgba(0, 176, 155, 0.4); }
+
+        .footer-text { margin-top: 25px; font-size: 12px; color: #a0aab2; }
     </style>
 </head>
 <body>
 
-    <div id="setup-banner">
-        <h3>📍 Route Builder</h3>
-        <p>Click on the map to drop pins. You will be asked to name each stop.</p>
-        
-        <select id="vehicleType" class="vehicle-select">
-            <option value="walk">🚶 Walking Mode</option>
-            <option value="bike" selected>🏍️ Bike Mode</option>
-            <option value="bus">🚌 Bus Mode</option>
-        </select>
+    <div class="login-card">
+        <div class="logo">FleetMaster<span>Pro</span></div>
+        <div class="subtitle">Enterprise Fleet Management</div>
 
-        <p id="pin-count" style="font-weight:bold; color: #ff416c; margin-top:0;">Stops added: 0</p>
-        <button class="btn-lock" id="lockBtn" onclick="startTrackingMode()">Lock Route & Snap to Roads</button>
-    </div>
-
-    <div id="tracking-ui">
-        <div class="status-card">
-            <div class="status-left">
-                <div class="status-dot" id="indicator"></div>
-                <div>
-                    <p class="status-time" id="time-text">Waiting...</p>
-                    <span class="speed-badge" id="live-speed">Speed: 0 km/h</span>
-                </div>
-            </div>
-            <div class="eta-badge" id="eta-display">ETA: Calc...</div>
+        <div class="role-selector">
+            <button class="role-btn active" onclick="selectRole('student', this)">Parent/Student</button>
+            <button class="role-btn" onclick="selectRole('driver', this)">Driver</button>
+            <button class="role-btn" onclick="selectRole('admin', this)">Admin</button>
         </div>
 
-        <div class="timeline-card" id="draggablePanel">
-            <div class="timeline-header" id="panelHeader">
-                <h3 class="timeline-title">📍 Live Route Status</h3>
-                <button class="toggle-btn" onclick="togglePanel()">—</button>
-            </div>
-            <div id="timeline-content">
-                <div id="timeline-list"></div>
-            </div>
+        <div class="input-group">
+            <label id="user-label">Roll Number / User ID</label>
+            <input type="text" id="username" placeholder="Enter your ID" autocomplete="off">
         </div>
-    </div>
+        <div class="input-group">
+            <label>Password / Secure PIN</label>
+            <input type="password" id="password" placeholder="Enter your password">
+        </div>
 
-    <div id="map"></div>
+        <button class="btn-login" onclick="handleLogin()">Secure Login</button>
+
+        <div class="footer-text">Protected by AES-256 Encryption</div>
+    </div>
 
     <script>
-        // ⚠️ PASTE YOUR MUMBAI GET LAMBDA URL HERE:
-        const baseApiUrl = 'https://solj6hr5civgvolp2mxmaaqxrm0osnxw.lambda-url.ap-south-1.on.aws/'; 
-        
-        let map; let busMarker; let trackingInterval;
-        let routeStops = []; let routeCoordinates = []; 
-        let roadCoordinates = []; 
-        let polylineLayer;
-        let isTripComplete = false;
+        let currentRole = 'student';
 
-        // NEW: Dynamic Speed Tracking Variables
-        let lastLat = null;
-        let lastLng = null;
-        let lastPingTime = null;
-        let currentDynamicSpeedKmH = 20; // Default fallback speed so it doesn't break on first ping
+        // UI Logic to switch tabs
+        function selectRole(role, element) {
+            currentRole = role;
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            element.classList.add('active');
 
-        const busIcon = L.divIcon({ html: '🔴', className: 'custom-bus-icon', iconSize: [30, 30], iconAnchor: [15, 15] });
-
-        function initMap() {
-            map = L.map('map', {zoomControl: false}).setView([11.7767, 77.7925], 16);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-            L.control.zoom({ position: 'bottomright' }).addTo(map); 
-
-            map.on('click', function(e) {
-                if(document.getElementById('setup-banner').style.display === 'none') return; 
-
-                let defaultName = routeStops.length === 0 ? "Start Point" : "Stop " + (routeStops.length + 1);
-                let stopName = prompt("Enter stop name:", defaultName);
-                if (!stopName) return; 
-
-                routeStops.push({ id: routeStops.length + 1, name: stopName, lat: e.latlng.lat, lng: e.latlng.lng });
-                routeCoordinates.push([e.latlng.lat, e.latlng.lng]);
-
-                L.circleMarker([e.latlng.lat, e.latlng.lng], { radius: 6, color: '#3388ff', fillColor: 'white', fillOpacity: 1 })
-                 .addTo(map).bindPopup(stopName).openPopup();
-
-                document.getElementById('pin-count').innerText = `Stops added: ${routeStops.length}`;
-            });
+            // Change the label based on role
+            const label = document.getElementById('user-label');
+            if(role === 'student') label.innerText = 'Roll Number / Parent Phone';
+            if(role === 'driver') label.innerText = 'Driver ID';
+            if(role === 'admin') label.innerText = 'Admin Email';
         }
 
-        async function fetchRoadRoute() {
-            const coordsString = routeStops.map(s => `${s.lng},${s.lat}`).join(';');
-            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
-            
-            try {
-                const response = await fetch(osrmUrl);
-                const data = await response.json();
-                if (data.routes && data.routes.length > 0) {
-                    roadCoordinates = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-                } else { roadCoordinates = routeCoordinates; }
-            } catch (e) { roadCoordinates = routeCoordinates; }
-        }
+        // Routing Logic (Mock Authentication for now)
+        function handleLogin() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
 
-        async function startTrackingMode() {
-            if (routeStops.length < 2) { alert("Add at least 2 stops!"); return; }
-
-            document.getElementById('lockBtn').innerText = "Snapping to roads...";
-            
-            // Set vehicle icon only, no hardcoded speeds!
-            const vehicleType = document.getElementById('vehicleType').value;
-            if (vehicleType === 'walk') busIcon.options.html = '🚶';
-            else if (vehicleType === 'bike') busIcon.options.html = '🏍️';
-            else busIcon.options.html = '🚌';
-
-            await fetchRoadRoute();
-
-            document.getElementById('setup-banner').style.display = 'none';
-            document.getElementById('tracking-ui').style.display = 'block';
-            map.getContainer().style.cursor = ''; 
-
-            polylineLayer = L.polyline(roadCoordinates, { color: '#1e88e5', weight: 6, opacity: 0.9 }).addTo(map);
-
-            renderTimeline(-1, 0, 0);
-            fetchBusLocation();
-            trackingInterval = setInterval(fetchBusLocation, 5000);
-        }
-
-        function calculateTimeStr(distanceMeters) {
-            const distanceKm = distanceMeters / 1000;
-            // NEW: Use the dynamically calculated speed!
-            const timeHours = distanceKm / currentDynamicSpeedKmH;
-            const totalMins = timeHours * 60;
-            
-            // NEW: Fix the 13000m bug. If ETA is over 10 hours, say Calculating.
-            if (totalMins > 600) return "Calculating...";
-
-            const mins = Math.floor(totalMins);
-            const secs = Math.round((totalMins - mins) * 60);
-            
-            if (mins === 0 && secs < 30) return "Arriving";
-            if (mins > 60) {
-                const hrs = Math.floor(mins / 60);
-                const remMins = mins % 60;
-                return `${hrs}h ${remMins}m`;
-            }
-            return `${mins}m ${secs}s`;
-        }
-
-        function updateTimelineLogic(busLat, busLng) {
-            if (isTripComplete) return;
-
-            let closestStopIndex = 0; let shortestDistance = Infinity;
-
-            routeStops.forEach((stop, index) => {
-                const distance = map.distance([busLat, busLng], [stop.lat, stop.lng]);
-                if (distance < shortestDistance) { shortestDistance = distance; closestStopIndex = index; }
-            });
-
-            const finalStop = routeStops[routeStops.length - 1];
-            if (map.distance([busLat, busLng], [finalStop.lat, finalStop.lng]) < 40) {
-                isTripComplete = true;
-                document.getElementById('eta-display').innerText = "🎉 TRIP COMPLETED";
-                document.getElementById('eta-display').style.color = "#00e676";
-                document.getElementById('live-speed').innerText = "Stopped";
-                document.getElementById('indicator').className = 'status-dot';
-                renderTimeline(routeStops.length, busLat, busLng); 
+            if(!user || !pass) {
+                alert("Please enter credentials!");
                 return;
             }
 
-            renderTimeline(closestStopIndex, busLat, busLng);
-
-            const distToFinal = map.distance([busLat, busLng], [finalStop.lat, finalStop.lng]);
-            document.getElementById('eta-display').innerText = `ETA: ${calculateTimeStr(distToFinal)}`;
-        }
-
-        function renderTimeline(currentStopIndex, busLat, busLng) {
-            const listDiv = document.getElementById('timeline-list');
-            listDiv.innerHTML = ''; 
-
-            routeStops.forEach((stop, index) => {
-                let icon = '⏳'; let textClass = 'upcoming'; let etaHtml = '';
-
-                if (index < currentStopIndex || isTripComplete) { 
-                    icon = '✅'; textClass = 'passed'; 
-                } else if (index === currentStopIndex) { 
-                    icon = '📍'; textClass = 'current'; 
-                } else {
-                    const distToStop = map.distance([busLat, busLng], [stop.lat, stop.lng]);
-                    etaHtml = `<span class="stop-eta">${calculateTimeStr(distToStop)}</span>`;
-                }
-
-                listDiv.innerHTML += `
-                    <div class="stop-item ${textClass}">
-                        <div class="stop-left">
-                            <span class="stop-icon">${icon}</span>
-                            <span>${stop.name}</span>
-                        </div>
-                        ${etaHtml}
-                    </div>`;
-            });
-        }
-
-        async function fetchBusLocation() {
-            if (isTripComplete) return;
-
-            try {
-                const response = await fetch(baseApiUrl);
-                const data = await response.json();
-                
-                if (data.lat && data.lng) {
-                    const newPingTime = new Date(data.timestamp).getTime();
-                    const now = Date.now();
-                    
-                    if (now - newPingTime > 15000) {
-                        document.getElementById('indicator').className = 'status-dot offline';
-                        document.getElementById('time-text').innerText = "Driver Offline / Ended Trip";
-                        document.getElementById('live-speed').innerText = "Speed: 0 km/h";
-                        return;
-                    }
-
-                    const newLatLng = [data.lat, data.lng];
-
-                    // --- NEW: DYNAMIC SPEED CALCULATION ENGINE ---
-                    if (lastLat && lastLng && lastPingTime) {
-                        const distMeters = map.distance([lastLat, lastLng], newLatLng);
-                        const timeDiffHours = (newPingTime - lastPingTime) / 3600000; // milliseconds to hours
-                        
-                        if (timeDiffHours > 0 && timeDiffHours < 1) { // Ignore massive time jumps
-                            let instantSpeed = (distMeters / 1000) / timeDiffHours;
-                            
-                            // Failsafes: Don't let GPS jumps cause infinite speed or zero speed errors
-                            if (instantSpeed < 3) instantSpeed = 3; // Prevent Infinity ETA when stopped at red light
-                            if (instantSpeed > 120) instantSpeed = 120; // Prevent supersonic GPS glitches
-                            
-                            // Moving average for smooth ETAs
-                            currentDynamicSpeedKmH = (currentDynamicSpeedKmH * 0.5) + (instantSpeed * 0.5); 
-                        }
-                    }
-                    
-                    // Save for next ping
-                    lastLat = newLatLng[0];
-                    lastLng = newLatLng[1];
-                    lastPingTime = newPingTime;
-                    // ----------------------------------------------
-
-                    document.getElementById('indicator').className = 'status-dot live';
-                    document.getElementById('time-text').innerText = `Live | Ping: ${new Date(data.timestamp).toLocaleTimeString()}`;
-                    document.getElementById('live-speed').innerText = `Live Speed: ${Math.round(currentDynamicSpeedKmH)} km/h`;
-
-                    if (!busMarker) busMarker = L.marker(newLatLng, {icon: busIcon}).addTo(map);
-                    else busMarker.setLatLng(newLatLng);
-                    
-                    updateTimelineLogic(data.lat, data.lng);
-                }
-            } catch (error) { console.error("Signal lost"); }
-        }
-
-        // Draggable Logic
-        function togglePanel() {
-            const content = document.getElementById('timeline-content');
-            const btn = document.querySelector('.toggle-btn');
-            if (content.style.display === 'none') { content.style.display = 'block'; btn.innerText = '—'; } 
-            else { content.style.display = 'none'; btn.innerText = '⬜'; }
-        }
-
-        const panel = document.getElementById("draggablePanel"); const header = document.getElementById("panelHeader");
-        let isDragging = false; let currentX; let currentY; let initialX; let initialY; let xOffset = 0; let yOffset = 0;
-        header.addEventListener("mousedown", dragStart); header.addEventListener("touchstart", dragStart, {passive: false});
-        document.addEventListener("mouseup", dragEnd); document.addEventListener("touchend", dragEnd);
-        document.addEventListener("mousemove", drag); document.addEventListener("touchmove", drag, {passive: false});
-
-        function dragStart(e) {
-            initialX = e.type === "touchstart" ? e.touches[0].clientX - xOffset : e.clientX - xOffset;
-            initialY = e.type === "touchstart" ? e.touches[0].clientY - yOffset : e.clientY - yOffset;
-            if (e.target === header || e.target.tagName === 'H3') isDragging = true;
-        }
-        function dragEnd() { isDragging = false; }
-        function drag(e) {
-            if (isDragging) {
-                e.preventDefault();
-                currentX = e.type === "touchmove" ? e.touches[0].clientX - initialX : e.clientX - initialX;
-                currentY = e.type === "touchmove" ? e.touches[0].clientY - initialY : e.clientY - initialY;
-                xOffset = currentX; yOffset = currentY;
-                panel.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+            // Route based on selected role
+            if (currentRole === 'student') {
+                window.location.href = 'student.html';
+            } else if (currentRole === 'driver') {
+                window.location.href = 'driver.html';
+            } else if (currentRole === 'admin') {
+                window.location.href = 'admin.html';
             }
         }
-
-        initMap(); 
     </script>
 </body>
 </html>
