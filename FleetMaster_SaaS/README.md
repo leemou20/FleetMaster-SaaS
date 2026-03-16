@@ -323,5 +323,20 @@ The MVP version of the Driver App (`driver.html`) hardcoded `"bus_1"` into every
 
 ### 3. Result
 100 different drivers can now log into the Driver App on their own phones, select their specific bus, and broadcast unique, parallel GPS streams to the cloud without overriding each other's data.
+
+## Version 2.2 Update: Smart Session Context (Conductor App)
+**Date:** March 2026 | **Phase:** Multi-Tenant Architecture
+
+### 1. The Objective
+The MVP Conductor App (`conductor.html`) immediately loaded the student roster upon opening and displayed a hardcoded header ("Bus 1"). To support multiple simultaneous routes, the Conductor App needed a setup gateway identical to the Driver App, ensuring the UI reflects the actual vehicle being operated.
+
+### 2. Frontend Integration (`conductor.html`)
+* **UI Architecture:** Wrapped the core attendance application inside a hidden `div` (`main-app`) and injected a new `setup-section` at the top of the DOM. 
+* **Dynamic Loading:** Implemented `loadFleet()` to fetch the live registry from `ManageFleetRegistry` Lambda and populate a `<select>` dropdown.
+* **Execution Control:** Commented out the auto-executing `loadStudentsFromCloud()` at the bottom of the script. It is now only invoked inside the new `startConductorSession()` function.
+* **Context Setting:** When the conductor selects a bus and clicks start, the app hides the setup screen, displays the roster, and dynamically injects the chosen Driver/Bus name into the top Navigation Header for situational awareness.
+
+### 3. Next Steps (Roadmap Note)
+*Future integration with AWS Cognito User Pools is planned to securely link these dropdown selections to authenticated driver/conductor login credentials, replacing this honor-system dropdown.*
 ---
 *Built from scratch. Scaling the future of transport logistics.*
