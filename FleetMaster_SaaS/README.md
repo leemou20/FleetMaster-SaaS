@@ -285,4 +285,28 @@ if (displaySpeed > 60) {
 }
 ```
 ---
+{date:16/03/2026}
+## Version 2.0 Update: The Relational Data Hub (Fleet Registry)
+**Date:** March 2026 | **Phase:** Multi-Tenant Architecture
+
+### 1. The Objective
+In Version 1.0 (MVP), the platform relied on hardcoded vehicle identifiers (e.g., "bus_1", "bus_2") embedded directly into the HTML dropdowns and JavaScript logic. To scale into a multi-tenant Enterprise SaaS, we needed a dynamic, cloud-hosted registry where administrators can register any number of vehicles and drivers, which automatically syncs across the entire platform.
+
+### 2. AWS Cloud Architecture
+* **DynamoDB Table:** Created a new table named `FleetMaster_Registry`.
+    * **Partition Key:** `bus_id` (Type: String) - Serves as the unique system identifier for the vehicle.
+* **Lambda Function (API):** Created a Python 3.x function named `ManageFleetRegistry`.
+    * **CORS Settings:** Allowed Origins (`*`), Methods (`*`), and Headers (`*`).
+    * **Logic (POST):** Accepts a JSON payload containing `bus_id`, `license_plate`, `driver_name`, and `driver_phone`, and writes it to the DynamoDB table using `boto3`.
+    * **Logic (GET):** Performs a `.scan()` on the table to return an array of all registered vehicles to the frontend.
+
+### 3. Frontend Integration (`admin.html`)
+* **UI Navigation:** Added a new "Data Hub (Registry)" tab to the sidebar navigation.
+* **Data Hub Form:** Built a user interface for admins to input vehicle and driver details.
+* **Javascript Engine:** * Implemented `registerVehicle()`: Captures form data, packages it into a JSON payload, and sends a `POST` request to the Lambda API.
+    * Implemented `loadBusesIntoDropdown()`: Fires automatically on page load and after every new registration. It sends a `GET` request to the Lambda API, parses the JSON, and dynamically populates the `<datalist id="bus-options">` in the Route Builder tab.
+
+### 4. Result
+The Admin can now add a new vehicle in the Data Hub, and it becomes instantaneously available for assignment in the Route Builder without writing a single line of code.
+---
 *Built from scratch. Scaling the future of transport logistics.*
