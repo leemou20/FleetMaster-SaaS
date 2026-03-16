@@ -48,6 +48,7 @@
         <div class="role-selector">
             <button class="role-btn active" onclick="selectRole('student', this)">Parent</button>
             <button class="role-btn" onclick="selectRole('driver', this)">Driver</button>
+            <button class="role-btn" onclick="selectRole('conductor', this)">Conductor</button>
             <button class="role-btn" onclick="selectRole('admin', this)">Admin</button>
         </div>
 
@@ -114,6 +115,7 @@
                     // 🎉 PASSWORD CORRECT! Route them to the right page.
                     if (currentRole === 'student') window.location.href = 'student.html';
                     else if (currentRole === 'driver') window.location.href = 'driver.html';
+                    else if (currentRole === 'conductor') window.location.href = 'conductor.html'; // 🚀 Routes to Attendance Engine
                     else if (currentRole === 'admin') window.location.href = 'admin.html';
                 },
                 onFailure: function(err) {
