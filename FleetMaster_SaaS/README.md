@@ -388,6 +388,28 @@ In the MVP, the `student.html` application suffered from an isolated state leak.
 ### 3. Result
 The Parent application is now completely hands-free and context-aware. A parent logs in, and the application autonomously queries the database relational chain (User -> Student Profile -> Assigned Bus -> Assigned Route) to render a 100% accurate, personalized tracking dashboard.
 
+## Version 2.5 Update: TAM Expansion & Top 1% Physics Engine
+**Date:** March 2026 | **Phase:** Enterprise Feature Enrichment & Production Readiness
+
+### 1. The Objective
+To support private fleets (vans, auto-rickshaws, cars), the platform needed dynamic vehicle-type intelligence and geospatial "Home Pin" capabilities to provide visual proximity mapping for parents. Furthermore, the consumer-facing Parent App (`student.html`) required an enterprise-grade physics engine to isolate fleet data, smooth out GPS jitter, and dynamically render custom map icons based on the relational database.
+
+### 2. Admin Frontend & Database Pipeline (`admin.html`)
+* **Vehicle Type Support:** Added a `<select id="reg-type">` dropdown to the Vehicle Registration form to support School Buses, Mini-Vans, Autos, and Cars.
+* **Geospatial Mini-Map:** Integrated a localized Leaflet map (`initHomeMap()`) directly into the Student Registration card. Administrators click the map to extract precise `home_lat` and `home_lng` coordinates.
+* **Dual-Routing Profile:** Split the generic "stop" field into `morning_stop` and `evening_stop`.
+* **UX Formatting (+91 Auto-Fill):** Upgraded the phone number input fields with a locked flexbox prefix (`+91`), stripping redundant typing for administrators while guaranteeing standardized formatting for the database.
+* **Boto3/DynamoDB Serialization Fix:** Patched a critical silent crash where AWS DynamoDB rejected floating-point map coordinates. Intercepted `selectedHomeLat` and `selectedHomeLng` on the frontend and cast them to `String` data types before payload transmission.
+* **Backward Compatibility:** Restored the legacy `stop` JSON key to ensure the Conductor App's attendance grouping algorithms do not break during the morning/evening stop transition.
+
+### 3. Consumer Frontend & Physics Engine (`student.html`)
+* **Relational Data Isolation:** Re-engineered the `fetchBusLocation()` polling engine. Instead of blindly pulling the latest GPS ping, the app now cross-references the student's `targetBusId` and surgically filters the AWS payload to ensure parents only track their specific assigned vehicle.
+* **Exponential Moving Average (EMA) Speed Math:** Implemented a physics layer that calculates the distance and time deltas between GPS pings. Applied an EMA smoothing algorithm (`(oldSpeed * 0.5) + (newSpeed * 0.5)`) and strict speed caps to eliminate map jumping and supersonic GPS glitches.
+* **Dynamic Leaflet Rendering:** Overrode the hardcoded Leaflet map markers. The system now parses the `vehicle_type` from the database and utilizes `.setIcon()` to dynamically swap between Unicode icons (🚌, 🚐, 🛺, 🚗) in real-time.
+* **Offline Failsafes:** Programmed a timeout listener that marks the vehicle as "Offline / Ended Trip" if the timestamp of the last AWS ping exceeds 5 minutes.
+
+### 4. Result
+The Multi-Tenant Architecture is now mathematically and visually complete. Administrators can register diverse fleet types and plot exact student home coordinates. Drivers broadcast isolated telemetry. Parents receive a buttery-smooth, context-aware live tracking experience featuring their specific vehicle's icon, precise ETA calculations, and their personal home pinned on the map. The application is now primed for AWS Amplify Production Deployment.
 
 ---
 *Built from scratch. Scaling the future of transport logistics.*
