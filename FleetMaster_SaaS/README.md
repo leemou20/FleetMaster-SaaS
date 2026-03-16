@@ -308,5 +308,20 @@ In Version 1.0 (MVP), the platform relied on hardcoded vehicle identifiers (e.g.
 
 ### 4. Result
 The Admin can now add a new vehicle in the Data Hub, and it becomes instantaneously available for assignment in the Route Builder without writing a single line of code.
+
+## Version 2.1 Update: Smart Fleet Broadcaster (Driver App)
+**Date:** March 2026 | **Phase:** Multi-Tenant Architecture
+
+### 1. The Objective
+The MVP version of the Driver App (`driver.html`) hardcoded `"bus_1"` into every GPS payload sent to AWS. This prevented multiple drivers from using the system simultaneously. We needed to make the Driver App "smart" by connecting it to the new `FleetMaster_Registry` so drivers can dynamically claim their assigned vehicle before starting a trip.
+
+### 2. Frontend Integration (`driver.html`)
+* **UI Upgrade:** Removed hardcoded text and implemented a dynamic `<select>` dropdown menu to display available vehicles on startup.
+* **Initialization Logic:** Created `loadFleet()`, an async function that sends a `GET` request to `ManageFleetRegistry` Lambda on page load, parsing the JSON to populate the dropdown with real Driver Names and License Plates.
+* **Validation & Lock-in:** Updated `startTracking()` to block execution if a vehicle is not selected. Once selected, the UI hides the dropdown to prevent mid-trip errors and displays a permanent "Active: [Driver Name]" badge.
+* **Dynamic Telemetry:** Updated `sendLocationToServer(lat, lng)` to inject the globally scoped `selectedBusId` into the JSON payload sent to the `FleetMaster_LiveGPS` database.
+
+### 3. Result
+100 different drivers can now log into the Driver App on their own phones, select their specific bus, and broadcast unique, parallel GPS streams to the cloud without overriding each other's data.
 ---
 *Built from scratch. Scaling the future of transport logistics.*
