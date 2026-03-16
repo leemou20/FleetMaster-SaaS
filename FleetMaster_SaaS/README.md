@@ -338,5 +338,56 @@ The MVP Conductor App (`conductor.html`) immediately loaded the student roster u
 
 ### 3. Next Steps (Roadmap Note)
 *Future integration with AWS Cognito User Pools is planned to securely link these dropdown selections to authenticated driver/conductor login credentials, replacing this honor-system dropdown.*
+
+## Version 2.3 Update: The Student/Parent Data Hub
+
+**Date:** March 2026 | **Phase:** Multi-Tenant Architecture
+
+
+
+### 1. The Objective
+
+Previously, the system lacked a frontend interface for administrators to enroll new students into the tracking ecosystem. We needed a UI within the Admin Dashboard that allows management to create student profiles, link parent contact information, and assign them to specific vehicles and physical stops.
+
+
+
+### 2. Frontend Integration (`admin.html`)
+
+* **UI Expansion:** Added a secondary "Register New Student & Parent" card within the Data Hub tab. 
+
+* **Dynamic Data Binding:** Modified the existing `loadBusesIntoDropdown()` function. When it fetches the active vehicle registry from AWS, it now populates *both* the Route Builder `<datalist>` and the new Student Registration `<select>` dropdown simultaneously.
+
+* **Database Pipeline (`registerStudent`):** * Captures `name`, `roll` (User ID), `phone`, `bus_id`, and `stop`.
+
+    * Packages the data into a JSON payload formatted exactly as the Conductor App expects.
+
+    * Re-uses the existing `SAVE_STUDENT_API_URL` (Lambda API) to `POST` the new record directly into the `FleetMaster_Students` DynamoDB table.
+
+
+
+### 3. Result
+
+The ecosystem is now fully looped. An administrator can register a new bus, then register a new student and assign them to that bus. The moment this is done, that student will automatically appear on the assigned Conductor's mobile app, and the Parent can log in to track that specific bus. 
+
+
+## Version 2.4 Update: Session State Management & Relational Route Sync
+**Date:** March 2026 | **Phase:** Multi-Tenant Architecture
+
+### 1. The Architecture Flaw Identified
+In the MVP, the `student.html` application suffered from an isolated state leak. When AWS Cognito authenticated a user in `index.html`, the user's identity was lost during the browser redirect. Without knowing *who* the parent was, `student.html` blindly fetched the last created route from the `FleetMaster_Routes` database, resulting in parents potentially seeing the wrong bus. Furthermore, legacy manual Route Builder UI elements remained in the parent-facing portal.
+
+### 2. Frontend State Integration (`index.html` & `student.html`)
+* **State Preservation:** Updated the AWS Cognito `onSuccess` callback in `index.html` to inject the `user` (Roll Number) into the browser's persistent `localStorage`.
+* **UI Refactoring:** Gutted the manual pin-dropping and "Download Route" buttons from `student.html`. Replaced them with an automated `<div id="setup-banner">` that provides visual synchronization feedback to the parent.
+* **Smart Sync Logic (`autoInitializeParentPortal`):**
+    1. Retrieves the `fleetmaster_user_id` from `localStorage`.
+    2. Performs a `GET` fetch to the `FleetMaster_Students` API to locate the user's relational profile and extracts their `assigned_bus`.
+    3. Performs a `GET` fetch to the `FleetMaster_Routes` API to isolate and download *only* the specific route mapped to that `assigned_bus`.
+    4. Automatically plots the designated stops and seamlessly transitions the application into Live Tracking mode via `startTrackingMode()`.
+
+### 3. Result
+The Parent application is now completely hands-free and context-aware. A parent logs in, and the application autonomously queries the database relational chain (User -> Student Profile -> Assigned Bus -> Assigned Route) to render a 100% accurate, personalized tracking dashboard.
+
+
 ---
 *Built from scratch. Scaling the future of transport logistics.*
