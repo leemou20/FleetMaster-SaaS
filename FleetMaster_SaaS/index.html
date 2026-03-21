@@ -87,74 +87,64 @@
             if(role === 'admin') label.innerText = 'Admin Email';
         }
 
-        // 3. The Secure Authentication Engine
+        // 3. 🔓 DEV MODE: PASSWORD BYPASS
         function handleLogin() {
             const user = document.getElementById('username').value.trim();
-            const pass = document.getElementById('password').value;
             const errorDiv = document.getElementById('error-msg');
             const btn = document.getElementById('loginBtn');
 
-            if(!user || !pass) {
-                errorDiv.innerText = "Please enter both ID and Password.";
+            if(!user) {
+                errorDiv.innerText = "Please enter your ID to continue.";
                 errorDiv.style.display = "block";
                 return;
             }
 
-            // Update UI to show loading
-            btn.innerText = "Authenticating...";
-            btn.style.opacity = "0.7";
-            errorDiv.style.display = "none";
+            btn.innerText = "Bypassing Security...";
+            
+            // Instantly save ID to memory and teleport to the app!
+            localStorage.setItem('fleetmaster_user_id', user);
+            
+            setTimeout(() => {
+                if (currentRole === 'student') window.location.href = 'student.html';
+                else if (currentRole === 'driver') window.location.href = 'driver.html';
+                else if (currentRole === 'conductor') window.location.href = 'conductor.html';
+                else if (currentRole === 'admin') window.location.href = 'admin.html';
+            }, 500);
 
-            // Package the credentials for AWS
+            /* ========================================================
+               🛑 REAL AWS COGNITO CODE (SLEEPING FOR MOCK TEST) 🛑
+               To turn security back on, delete the /* above and */ /* below!
+               
+            const pass = document.getElementById('password').value;
+            if(!user || !pass) {
+                errorDiv.innerText = "Please enter both ID and Password.";
+                errorDiv.style.display = "block"; return;
+            }
+            btn.innerText = "Authenticating..."; btn.style.opacity = "0.7"; errorDiv.style.display = "none";
             const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: user, Password: pass });
             const cognitoUser = new AmazonCognitoIdentity.CognitoUser({ Username: user, Pool: userPool });
-
-            // Send to AWS
             cognitoUser.authenticateUser(authenticationDetails, {
                 onSuccess: function (result) {
-                    // 🎉 PASSWORD CORRECT! Route them to the right page.
+                    localStorage.setItem('fleetmaster_user_id', user);
                     if (currentRole === 'student') window.location.href = 'student.html';
                     else if (currentRole === 'driver') window.location.href = 'driver.html';
-                    else if (currentRole === 'conductor') window.location.href = 'conductor.html'; // 🚀 Routes to Attendance Engine
+                    else if (currentRole === 'conductor') window.location.href = 'conductor.html'; 
                     else if (currentRole === 'admin') window.location.href = 'admin.html';
                 },
                 onFailure: function(err) {
-                    // ❌ PASSWORD WRONG or USER DOESN'T EXIST
-                    btn.innerText = "Secure Login";
-                    btn.style.opacity = "1";
+                    btn.innerText = "Secure Login"; btn.style.opacity = "1";
                     errorDiv.innerText = err.message || "Invalid credentials. Please try again.";
                     errorDiv.style.display = "block";
                 },
                 newPasswordRequired: function(userAttributes, requiredAttributes) {
-                    // ⚠️ THE FIRST-LOGIN GOTCHA HANDLER (NOW WITH 'NAME' FIX)
-                    const newPass = prompt("First Login Detected!\nPlease set a new permanent password:");
-                    if (!newPass) {
-                        btn.innerText = "Secure Login";
-                        btn.style.opacity = "1";
-                        errorDiv.innerText = "Password change cancelled.";
-                        errorDiv.style.display = "block";
-                        return;
-                    }
-
-                    // Ask for the missing required attribute: Name!
+                    const newPass = prompt("First Login Detected!\\nPlease set a new permanent password:");
+                    if (!newPass) return;
                     const fullName = prompt("Please enter your Full Name:");
-                    if (!fullName) {
-                        btn.innerText = "Secure Login";
-                        btn.style.opacity = "1";
-                        errorDiv.innerText = "Name is required to complete registration.";
-                        errorDiv.style.display = "block";
-                        return;
-                    }
-
-                    // Package the missing attributes
-                    const attributesData = {
-                        name: fullName
-                    };
-
-                    // Send the new password AND the name back to AWS
-                    cognitoUser.completeNewPasswordChallenge(newPass, attributesData, this);
+                    if (!fullName) return;
+                    cognitoUser.completeNewPasswordChallenge(newPass, { name: fullName }, this);
                 }
             });
+            ======================================================== */
         }
     </script>
 </body>

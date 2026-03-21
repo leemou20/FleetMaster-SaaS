@@ -15,14 +15,22 @@
         #startBtn { background: linear-gradient(135deg, #00b09b, #96c93d); color: white; }
         #stopBtn { background: linear-gradient(135deg, #ff416c, #ff4b2b); color: white; display: none; }
         #status-container { margin-top: 30px; padding: 15px; background: #2a2a2a; border-radius: 12px; border-left: 5px solid #00b09b; }
-        #status { font-size: 14px; color: #d0d0d0; font-weight: 600; line-height: 1.5; }
+        #status { font-size: 14px; color: #d0d0d0; font-weight: 600; line-height: 1.5; word-wrap: break-word; }
         .warning { color: #ff9800; font-size: 12px; margin-top: 15px; display: block; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h1>Driver Console</h1>
-        <p>Testing Mode: <strong>Bus 1</strong></p>
+        <h1>Driver Console <span style="font-size:12px; color:#a0aab2;">v2.0</span></h1>
+        
+        <div id="setup-section" style="margin-bottom: 20px; margin-top: 10px;">
+            <p style="margin-bottom: 10px;">Select your assigned vehicle:</p>
+            <select id="busSelect" class="btn" style="background: #2a2a2a; color: white; border: 1px solid #444; font-size: 16px; padding: 15px; margin-bottom: 15px; text-transform: none; width: 100%;">
+                <option value="">⏳ Loading fleet...</option>
+            </select>
+        </div>
+
+        <p id="active-bus-text" style="display: none; color: #00e676; font-size: 16px; font-weight: bold; margin-bottom: 25px;">Active: <span id="display-bus-name">None</span></p>
 
         <button id="startBtn" class="btn" onclick="startTracking()">Start Trip</button>
         <button id="stopBtn" class="btn" onclick="stopTracking()">End Trip</button>
@@ -35,70 +43,127 @@
     </div>
 
     <script>
-        // ⚠️ PASTE YOUR BRAND NEW SaveLiveGPS LAMBDA URL HERE:
         const apiUrl = 'https://now53637nkgb6l3gkrdt25msoe0oprgx.lambda-url.ap-south-1.on.aws/'; 
+        const REGISTRY_API_URL = 'https://4irmjjsu3fymjnivjytbf35hc40hkrqv.lambda-url.ap-south-1.on.aws/';
         
-        let watchId = null; // This will hold our GPS Watcher
+        let watchId = null; 
+        let selectedBusId = null; 
 
+        // Load Fleet
+        async function loadFleet() {
+            try {
+                const response = await fetch(REGISTRY_API_URL);
+                const data = await response.json();
+                let buses = data.body ? (typeof data.body === 'string' ? JSON.parse(data.body) : data.body) : (typeof data === 'string' ? JSON.parse(data) : data);
+                
+                const select = document.getElementById('busSelect');
+                select.innerHTML = '<option value="" disabled selected>Select your vehicle...</option>'; 
+                
+                buses.forEach(bus => {
+                    select.innerHTML += `<option value="${bus.bus_id}">${bus.driver_name} (${bus.license_plate})</option>`;
+                });
+            } catch(e) { 
+                console.error("Failed to load fleet", e);
+                document.getElementById('busSelect').innerHTML = '<option value="">⚠️ Error loading fleet</option>';
+            }
+        }
+        
+        loadFleet();
+
+        // 🚨 THE ULTIMATE FIX + DIAGNOSTIC ENGINE 🚨
         function sendLocationToServer(lat, lng) {
+            const payload = {
+                bus_id: selectedBusId,
+                lat: lat, // 🚨 PURE NUMBER (DynamoDB demands Number)
+                lng: lng, // 🚨 PURE NUMBER
+                timestamp: Date.now() // 🚨 PURE NUMBER
+            };
+
             fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ bus_id: "bus_1", lat: lat, lng: lng }) 
+                body: JSON.stringify(payload)
             })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('status').innerHTML = `<span style="color:#00b09b">🟢 LIVE</span><br>Lat: ${lat.toFixed(5)} | Lng: ${lng.toFixed(5)}<br>Transmitting seamlessly...`;
+            .then(async response => {
+                const text = await response.text(); // Read exactly what AWS says
+                
+                if (!response.ok) {
+                    // AWS CRASHED AND WE CATCH IT!
+                    document.getElementById('status-container').style.borderLeftColor = "#ff416c";
+                    document.getElementById('status').innerHTML = `<span style="color:#ff416c">⚠️ AWS REJECTED IT:</span><br><span style="font-size:11px;">${text}</span>`;
+                } else {
+                    // IT ACTUALLY SAVED!
+                    document.getElementById('status-container').style.borderLeftColor = "#00b09b";
+                    document.getElementById('status').innerHTML = `<span style="color:#00b09b">🟢 LIVE</span><br>Lat: ${lat.toFixed(5)} | Lng: ${lng.toFixed(5)}<br>DB Says: ${text.substring(0, 30)}`;
+                }
             })
             .catch(error => { 
-                document.getElementById('status').innerHTML = `<span style="color:#ff416c">⚠️ Network error! Retrying...</span>`; 
+                document.getElementById('status-container').style.borderLeftColor = "#ff416c";
+                document.getElementById('status').innerHTML = `<span style="color:#ff416c">⚠️ NETWORK ERROR:</span><br><span style="font-size:11px;">${error.message}</span>`; 
             });
         }
 
         function startTracking() {
-            // 1. Check if browser supports GPS
+            const selectElement = document.getElementById('busSelect');
+            if (!selectElement.value) {
+                alert("⚠️ Please select your assigned vehicle before starting the trip!");
+                return;
+            }
+            selectedBusId = selectElement.value; 
+            const selectedText = selectElement.options[selectElement.selectedIndex].text;
+
             if (!navigator.geolocation) {
                 document.getElementById('status').innerText = "GPS not supported on this browser!";
                 return;
             }
 
-            // 2. Update UI
+            document.getElementById('setup-section').style.display = 'none';
+            document.getElementById('active-bus-text').style.display = 'block';
+            document.getElementById('display-bus-name').innerText = selectedText;
+
             document.getElementById('startBtn').style.display = 'none';
             document.getElementById('stopBtn').style.display = 'inline-block';
             document.getElementById('status-container').style.borderLeftColor = "#ff416c";
             document.getElementById('status').innerText = "Acquiring GPS Lock... Please click Allow.";
 
-            // 3. Start the seamless Watcher (Only asks for permission ONCE)
             watchId = navigator.geolocation.watchPosition(
-                // Success Callback
                 (position) => { 
-                    document.getElementById('status-container').style.borderLeftColor = "#00b09b";
                     sendLocationToServer(position.coords.latitude, position.coords.longitude); 
                 },
-                // Error Callback
                 (error) => { 
                     let errorMsg = "GPS Error!";
                     if(error.code === 1) errorMsg = "Permission denied. Please allow location.";
                     if(error.code === 2) errorMsg = "Position unavailable. Are you indoors?";
+                    document.getElementById('status-container').style.borderLeftColor = "#ff416c";
                     document.getElementById('status').innerText = errorMsg; 
                 },
-                // Settings
-                { 
-                    enableHighAccuracy: true, 
-                    maximumAge: 0, 
-                    timeout: 10000 
-                }
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
             );
         }
 
         function stopTracking() {
-            // 1. Kill the GPS Watcher immediately
             if (watchId !== null) {
                 navigator.geolocation.clearWatch(watchId);
                 watchId = null;
             }
 
-            // 2. Update UI
+            // 🚨 THE ESCALATION ENGINE: Send the definitive "OFFLINE" Kill Signal to AWS
+            if (navigator.geolocation && selectedBusId) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify({
+                            bus_id: selectedBusId,
+                            lat: position.coords.latitude, // Safe last known coordinate
+                            lng: position.coords.longitude,
+                            timestamp: Date.now(),
+                            trip_status: "OFFLINE" // 🚨 The secret flag for the Parent App!
+                        })
+                    }).catch(e => console.log("Kill signal failed"));
+                });
+            }
+
             document.getElementById('startBtn').style.display = 'inline-block';
             document.getElementById('stopBtn').style.display = 'none';
             document.getElementById('status-container').style.borderLeftColor = "#757575";

@@ -79,6 +79,7 @@
         <div class="logo-area">FleetMaster<span>Pro</span></div>
         <ul class="nav-menu">
             <li class="nav-item active" onclick="switchTab('dashboard', this)">Dashboard</li>
+            <li class="nav-item" onclick="switchTab('data-hub', this)">Data Hub (Registry)</li>
             <li class="nav-item" onclick="switchTab('live-fleet', this)">Live Fleet & Attendance</li>
             <li class="nav-item" onclick="switchTab('route-builder', this)">Route Builder</li>
             <li class="nav-item" onclick="window.location.href='index.html'">Log Out</li>
@@ -95,29 +96,37 @@
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-title">Total Fleet</div>
-                    <div class="stat-value">20 Buses</div>
+                    <div class="stat-value" id="dash-fleet">⏳</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-title">Active Routes</div>
-                    <div class="stat-value" style="color: #00b09b;">0 Routes</div>
+                    <div class="stat-value" id="dash-routes" style="color: #00b09b;">⏳</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-title">Students Tracking</div>
-                    <div class="stat-value">0</div>
+                    <div class="stat-title">Students Enrolled</div>
+                    <div class="stat-value" id="dash-students">⏳</div>
                 </div>
-                <div class="stat-card alert">
+                <div class="stat-card">
                     <div class="stat-title">System Status</div>
-                    <div class="stat-value" style="color: #ff416c;">Setup Reqd</div>
+                    <div class="stat-value" id="dash-status" style="color: #00e676;">Checking...</div>
                 </div>
             </div>
-            <h3 style="color:#2c3e50;">Welcome to FleetMaster Pro. Please use the Route Builder to set up your first route.</h3>
+            <h3 style="color:#2c3e50;">Welcome to FleetMaster Pro. Select an option from the sidebar to manage your enterprise.</h3>
         </div>
 
         <div id="live-fleet-view" class="view-section">
+            
+            <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
+                <label style="font-weight: bold; color: #2c3e50;">Spy on Vehicle:</label>
+                <select id="god-mode-bus-select" class="dynamic-bus-dropdown" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc; flex-grow: 1; outline: none;">
+                    <option value="" disabled selected>⏳ Loading active fleet...</option>
+                </select>
+            </div>
+
             <div class="stats-grid" style="margin-bottom: 20px;">
                 <div class="stat-card" style="border-top-color: #3388ff;">
-                    <div class="stat-title">Bus 1 GPS Status</div>
-                    <div class="stat-value" id="admin-bus-status" style="font-size: 18px; color: #3388ff;">Waiting...</div>
+                    <div class="stat-title">GPS Status</div>
+                    <div class="stat-value" id="admin-bus-status" style="font-size: 18px; color: #3388ff;">Select Vehicle</div>
                 </div>
                 <div class="stat-card" style="border-top-color: #00e676;">
                     <div class="stat-title">Students Boarded</div>
@@ -139,6 +148,94 @@
 
             <div id="live-fleet-map" style="height: 55vh; width: 100%; border-radius: 12px; border: 2px solid #ecf0f1; z-index: 1;"></div>
         </div>
+
+        <div id="data-hub-view" class="view-section">
+            <div class="route-panel" style="width: 100%; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-radius: 12px;">
+                <h2>Register New Vehicle & Driver</h2>
+                <p>Add a new vehicle to your fleet registry. This will immediately become available in the Route Builder.</p>
+                
+                <div class="input-group">
+                    <label>Vehicle ID (System Name)</label>
+                    <input type="text" id="reg-bus-id" placeholder="e.g., auto_01 or bus_12">
+                </div>
+                <div class="input-group">
+                    <label>License Plate</label>
+                    <input type="text" id="reg-license" placeholder="e.g., TN-38-AB-1234">
+                </div>
+                <div class="input-group">
+                    <label>Driver Name</label>
+                    <input type="text" id="reg-driver" placeholder="e.g., Kishor">
+                </div>
+                <div class="input-group">
+                    <label>Driver Phone</label>
+                    <div style="display: flex; align-items: center; border: 2px solid #ecf0f1; border-radius: 8px; background: #fff; overflow: hidden;">
+                        <span style="padding: 12px; background: #f4f7f6; color: #7f8c8d; font-weight: bold; border-right: 1px solid #ecf0f1;">+91</span>
+                        <input type="tel" id="reg-phone" placeholder="9876543210" maxlength="10" style="border: none; border-radius: 0; outline: none; flex-grow: 1;">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Vehicle Type</label>
+                    <select id="reg-type">
+                        <option value="bus">🚌 School Bus</option>
+                        <option value="van">🚐 Mini-Van / Tempo</option>
+                        <option value="auto">🛺 Auto Rickshaw</option>
+                        <option value="car">🚗 Sedan / Car</option>
+                    </select>
+                </div>
+
+                <button class="btn-save" id="btn-register" onclick="registerVehicle()">💾 Register Vehicle to Fleet</button>
+            </div>
+
+            <div class="route-panel" style="width: 100%; max-width: 600px; margin: 30px auto 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-radius: 12px; border-top: 4px solid #3388ff;">
+                <h2>Register New Student & Parent</h2>
+                <p>Add a student to the system. This automatically adds them to the Conductor's roster and prepares their Parent App login.</p>
+                
+                <div class="input-group">
+                    <label>Student Name</label>
+                    <input type="text" id="reg-stu-name" placeholder="e.g., Shreyas">
+                </div>
+                <div class="input-group">
+                    <label>Roll Number (User ID)</label>
+                    <input type="text" id="reg-stu-roll" placeholder="e.g., 101 or CS-101">
+                </div>
+                <div class="input-group">
+                    <label>Parent Phone (For SMS/Login)</label>
+                    <div style="display: flex; align-items: center; border: 2px solid #ecf0f1; border-radius: 8px; background: #fff; overflow: hidden;">
+                        <span style="padding: 12px; background: #f4f7f6; color: #7f8c8d; font-weight: bold; border-right: 1px solid #ecf0f1;">+91</span>
+                        <input type="tel" id="reg-stu-phone" placeholder="9876543210" maxlength="10" style="border: none; border-radius: 0; outline: none; flex-grow: 1;">
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>Assign Vehicle</label>
+                    <select id="reg-stu-bus" class="dynamic-bus-dropdown">
+                        <option value="">⏳ Loading fleet...</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 15px;">
+                    <div class="input-group" style="flex: 1;">
+                        <label>Morning Pick-up Stop</label>
+                        <input type="text" id="reg-stu-morning" placeholder="e.g., Mettur Dam">
+                    </div>
+                    <div class="input-group" style="flex: 1;">
+                        <label>Evening Drop-off Stop</label>
+                        <input type="text" id="reg-stu-evening" placeholder="e.g., Mettur Dam South">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Set Student Home Location 🏠</label>
+                    <p style="font-size: 11px; color: #7f8c8d; margin-top: -5px;">Click on the map to drop the home pin.</p>
+                    <div id="home-map" style="height: 200px; border-radius: 8px; border: 2px solid #ecf0f1; margin-bottom: 5px;"></div>
+                    <p id="home-coords-display" style="font-size: 12px; font-weight: bold; color: #ff416c;">📍 Not Set</p>
+                </div>
+
+                <button class="btn-save" id="btn-reg-student" onclick="registerStudent()" style="background: #3388ff;">🎓 Register Student & Home</button>
+            </div>
+
+        </div>
+
         <div id="route-builder-view" class="view-section">
             <div class="route-panel">
                 <h2>Create New Route</h2>
@@ -149,13 +246,10 @@
                     <input type="text" id="routeName" placeholder="e.g. Kinathukadavu to Campus">
                 </div>
                 <div class="input-group">
-                    <label>Assign Bus ID / Vehicle Number</label>
-                    <input type="text" id="busSelect" list="bus-options" placeholder="e.g., bus_4 or TN-38-1234">
-                    <datalist id="bus-options">
-                        <option value="bus_1">
-                        <option value="bus_2">
-                        <option value="bus_3">
-                    </datalist>
+                    <label>Assign Vehicle to Route</label>
+                    <select id="busSelect" class="dynamic-bus-dropdown">
+                        <option value="" disabled selected>⏳ Loading fleet...</option>
+                    </select>
                 </div>
 
                 <label style="font-size: 12px; font-weight: 700; color: #7f8c8d; text-transform: uppercase;">Stops Added</label>
@@ -187,6 +281,16 @@
             if(tabId === 'dashboard') {
                 document.getElementById('page-title').innerText = "Transport Overview";
                 if(window.adminFleetInterval) clearInterval(window.adminFleetInterval);
+                refreshDashboard(); // 🚀 FETCH REAL STATS ON CLICK!
+            } else if(tabId === 'data-hub') {
+                document.getElementById('page-title').innerText = "Data Hub (Registry)";
+                if(window.adminFleetInterval) clearInterval(window.adminFleetInterval);
+                
+                // 🗺️ Initialize or resize the Student Home Map!
+                setTimeout(() => { 
+                    if(!homeMap) initHomeMap(); 
+                    else homeMap.invalidateSize(); 
+                }, 100);
             } else if(tabId === 'live-fleet') {
                 document.getElementById('page-title').innerText = "Live Fleet & Attendance (God Mode)";
                 setTimeout(() => { if(liveMap) liveMap.invalidateSize(); }, 200);
@@ -315,89 +419,336 @@
             }
         }
 
-        // --- 🚀 LIVE FLEET & ATTENDANCE ENGINE ---
-        // 1. The URL we just made for the Conductor App
+        // --- 🚀 LIVE FLEET & DASHBOARD ENGINE ---
         const ADMIN_GET_STUDENTS_URL = 'https://mp3sdcs26o7o5sakc4x7x2o2mq0vcmur.lambda-url.ap-south-1.on.aws/';
-        
-        // 2. ⚠️ PASTE YOUR GetLiveGPS LAMBDA URL HERE (The one from your Student App)
-        const ADMIN_GET_GPS_URL = 'YOUR_GetLiveGPS_URL_GOES_HERE'; 
+        const ADMIN_GET_ROUTES_URL = 'https://dhkoidf5cdfqw6uavdp2hdvisa0pddun.lambda-url.ap-south-1.on.aws/';
+        // 🚨 CRITICAL FIX: Now perfectly aligned with Student App!
+        const ADMIN_GET_GPS_URL = 'https://tqsrfu3zkdcvj3qdsb4uyfxfgi0trygr.lambda-url.ap-south-1.on.aws/'; 
         
         let liveMap; let liveBusMarker;
         let adminLastLat = null; let adminLastLng = null; let adminLastPing = null; let adminCurrentSpeed = 0;
+        // 🚨 V2.0 FIXES: Strict 2-ping rule and Stagnant Data tracker
+        let adminPingCount = 0; let adminStagnantTimer = 0;
+
+        // 📊 THE NEW DASHBOARD CALCULATOR
+        async function refreshDashboard() {
+            try {
+                // 1. Count Fleet
+                const regRes = await fetch(REGISTRY_API_URL);
+                const regData = await regRes.json();
+                let buses = regData.body ? (typeof regData.body === 'string' ? JSON.parse(regData.body) : regData.body) : (typeof regData === 'string' ? JSON.parse(regData) : regData);
+                document.getElementById('dash-fleet').innerText = buses.length + " Vehicles";
+
+                // 2. Count Routes
+                const routeRes = await fetch(ADMIN_GET_ROUTES_URL);
+                const routeData = await routeRes.json();
+                let routes = routeData.body ? (typeof routeData.body === 'string' ? JSON.parse(routeData.body) : routeData.body) : (typeof routeData === 'string' ? JSON.parse(routeData) : routeData);
+                const validRoutes = routes.filter(r => r.stops && r.stops.length > 0);
+                document.getElementById('dash-routes').innerText = validRoutes.length + " Active";
+
+                // 3. Count Students
+                const stuRes = await fetch(ADMIN_GET_STUDENTS_URL);
+                const stuData = await stuRes.json();
+                let students = stuData.body ? (typeof stuData.body === 'string' ? JSON.parse(stuData.body) : stuData.body) : (typeof stuData === 'string' ? JSON.parse(stuData) : stuData);
+                document.getElementById('dash-students').innerText = students.length;
+
+                document.getElementById('dash-status').innerText = "All Systems Go";
+            } catch(e) { console.error("Dashboard Sync Error"); }
+        }
+
+        // 👁️ THE NEW GOD MODE CALCULATOR
+        let isAdminFetching = false;
 
         async function refreshLiveFleet() {
+            if (isAdminFetching) return; 
+            
+            const targetBusId = document.getElementById('god-mode-bus-select').value;
             const statusText = document.getElementById('admin-bus-status');
             
-            // TASK A: Fetch Attendance from DynamoDB
+            if(!targetBusId) {
+                statusText.innerText = "Select Vehicle"; statusText.style.color = "#a0aab2";
+                return;
+            }
+
+            isAdminFetching = true;
+
+            // TASK A: Fetch Attendance
             try {
                 const res = await fetch(ADMIN_GET_STUDENTS_URL);
                 const data = await res.json();
-                let students = data.body ? (typeof data.body === 'string' ? JSON.parse(data.body) : data.body) : (typeof data === 'string' ? JSON.parse(data) : data);
+                let allStudents = data.body ? (typeof data.body === 'string' ? JSON.parse(data.body) : data.body) : (typeof data === 'string' ? JSON.parse(data) : data);
                 
-                const present = students.filter(s => s.status === 'present').length;
-                const absent = students.filter(s => s.status === 'absent').length;
+                const myStudents = allStudents.filter(s => s.bus_id === targetBusId);
+                const present = myStudents.filter(s => s.status === 'present').length;
+                const absent = myStudents.filter(s => s.status === 'absent').length;
                 
                 document.getElementById('admin-present-count').innerText = present;
                 document.getElementById('admin-absent-count').innerText = absent;
             } catch (e) { console.error("Admin Attendance Error", e); }
 
-            // TASK B: Fetch Live GPS & CALCULATE SPEED
+            // TASK B: Fetch Live GPS strictly for selected vehicle
             try {
                 const res = await fetch(ADMIN_GET_GPS_URL);
                 const data = await res.json();
+                let allGps = data.body ? (typeof data.body === 'string' ? JSON.parse(data.body) : data.body) : (typeof data === 'string' ? JSON.parse(data) : data);
                 
-                if (data.lat && data.lng) {
-                    const latlng = [data.lat, data.lng];
-                    const newPingTime = new Date(data.timestamp).getTime();
+                // 🚨 STRICT ENTERPRISE FILTER: Ignore all old database junk. ONLY get targetBusId!
+                let busList = Array.isArray(allGps) ? allGps : (allGps.Items ? allGps.Items : [allGps]);
+                let history = busList.filter(b => String(b.bus_id).trim() === String(targetBusId).trim());
+                
+                let myBus = null;
+                if (history.length > 0) {
+                    history.sort((a, b) => {
+                        let timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                        let timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                        return timeB - timeA;
+                    });
+                    myBus = history[0];
+                }
 
-                    // --- 🏎️ SPEED MATH ENGINE ---
-                    if (adminLastLat && adminLastLng && adminLastPing && liveMap) {
-                        const distMeters = liveMap.distance([adminLastLat, adminLastLng], latlng);
-                        const timeDiffHours = (newPingTime - adminLastPing) / 3600000;
-                        if (timeDiffHours > 0 && timeDiffHours < 1) {
-                            let instantSpeed = (distMeters / 1000) / timeDiffHours;
-                            if (instantSpeed > 120) instantSpeed = 120; // Ignore GPS glitches
-                            adminCurrentSpeed = (adminCurrentSpeed * 0.5) + (instantSpeed * 0.5); 
-                        }
+                if (myBus && myBus.lat) {
+                    const latlng = [parseFloat(myBus.lat), parseFloat(myBus.lng)];
+                    const newPingTime = myBus.timestamp ? new Date(myBus.timestamp).getTime() : Date.now();
+
+                    // 🚨 CLEAR CACHE IF ADMIN SWITCHES VEHICLES IN DROPDOWN
+                    if (window.adminLastTargetBus !== targetBusId) {
+                        adminPingCount = 0; adminStagnantTimer = 0; adminCurrentSpeed = 0;
+                        window.adminLastTargetBus = targetBusId;
                     }
-                    adminLastLat = data.lat; adminLastLng = data.lng; adminLastPing = newPingTime;
-                    
-                    let displaySpeed = Math.round(adminCurrentSpeed);
-                    document.getElementById('admin-live-speed').innerText = `${displaySpeed} km/h`;
 
-                    // 🚨 RED ALERT TRIGGER (If speed > 60)
-                    if (displaySpeed > 60) {
-                        document.getElementById('safety-alert-banner').style.display = 'block';
-                        document.getElementById('admin-live-speed').style.color = '#ff416c';
+                    adminPingCount++;
+
+                    // 🚨 V2.0 STAGNANT DATA OFFLINE DETECTOR
+                    if (adminLastPing === newPingTime) {
+                        adminStagnantTimer += 5000; // Database hasn't changed. Add 5 seconds.
                     } else {
-                        document.getElementById('safety-alert-banner').style.display = 'none';
-                        document.getElementById('admin-live-speed').style.color = '#ff9800';
+                        adminStagnantTimer = 0; // Fresh data! Reset.
                     }
-                    // ----------------------------
 
-                    statusText.innerText = `🟢 LIVE`;
-                    statusText.style.color = "#00e676";
+                    const isOffline = adminStagnantTimer >= 90000;
+
+                    if (isOffline) {
+                        adminCurrentSpeed = 0;
+                        statusText.innerText = "⚪ Trip Ended / Offline"; statusText.style.color = "#a0aab2";
+                        document.getElementById('admin-live-speed').innerText = `0 km/h`;
+                        document.getElementById('admin-live-speed').style.color = '#ff9800';
+                        document.getElementById('safety-alert-banner').style.display = 'none';
+                    } else {
+                        // 🛑 V2.0 PHYSICS ENGINE (Requires 2 Pings)
+                        if (adminLastLat && adminLastLng && adminLastPing && liveMap && adminPingCount >= 2) {
+                            const distMeters = liveMap.distance([adminLastLat, adminLastLng], latlng);
+                            const timeDiffHours = (newPingTime - adminLastPing) / 3600000;
+                            if (timeDiffHours > 0 && timeDiffHours < 1) {
+                                let instantSpeed = 0;
+                                
+                                if (distMeters > 15) {
+                                    instantSpeed = (distMeters / 1000) / timeDiffHours;
+                                }
+                                
+                                if (instantSpeed > 120) instantSpeed = 120;
+                                adminCurrentSpeed = (adminCurrentSpeed * 0.5) + (instantSpeed * 0.5); 
+                                
+                                if (adminCurrentSpeed < 2) adminCurrentSpeed = 0;
+                            }
+                        }
+                        
+                        let displaySpeed = Math.round(adminCurrentSpeed);
+                        document.getElementById('admin-live-speed').innerText = `${displaySpeed} km/h`;
+
+                        if (displaySpeed > 60) {
+                            document.getElementById('safety-alert-banner').style.display = 'block';
+                            document.getElementById('admin-live-speed').style.color = '#ff416c';
+                        } else {
+                            document.getElementById('safety-alert-banner').style.display = 'none';
+                            document.getElementById('admin-live-speed').style.color = '#ff9800';
+                        }
+
+                        statusText.innerText = `🟢 Tracking Online`; statusText.style.color = "#00e676";
+                    }
+
+                    adminLastLat = latlng[0]; adminLastLng = latlng[1]; adminLastPing = newPingTime;
                     
-                    // Draw or update the Admin Map
+                    // Always Draw Map (Even offline, so admin sees last known location)
                     if (!liveMap) {
                         liveMap = L.map('live-fleet-map').setView(latlng, 15);
                         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(liveMap);
                     } else { liveMap.setView(latlng); }
                     
                     if (!liveBusMarker) {
-                        liveBusMarker = L.circleMarker(latlng, { radius: 8, color: '#3388ff', fillColor: '#3388ff', fillOpacity: 1 }).addTo(liveMap).bindPopup("<b>Bus 1</b><br>Currently Active").openPopup();
+                        liveBusMarker = L.circleMarker(latlng, { radius: 8, color: '#3388ff', fillColor: '#3388ff', fillOpacity: 1 }).addTo(liveMap).bindPopup("<b>Target Locked</b>").openPopup();
                     } else { liveBusMarker.setLatLng(latlng); }
                 } else {
-                    statusText.innerText = "⚪ Offline";
-                    statusText.style.color = "#a0aab2";
+                    statusText.innerText = "⚪ Offline"; statusText.style.color = "#a0aab2";
                 }
             } catch (e) { 
-                console.error("Admin GPS Error", e); 
-                statusText.innerText = "⚠️ Connection Lost";
-                statusText.style.color = "#ff416c";
+                console.error("Admin GPS Error"); 
+                statusText.innerText = "⚠️ Connection Lost"; statusText.style.color = "#ff416c";
             }
+            
+            isAdminFetching = false; 
         }
         // -----------------------------------------
+
+        // --- 🚀 DATABASE & REGISTRY ENGINE (CLEANED & CONSOLIDATED) ---
+        const REGISTRY_API_URL = 'https://4irmjjsu3fymjnivjytbf35hc40hkrqv.lambda-url.ap-south-1.on.aws/';
+        const SAVE_STUDENT_API_URL = 'https://gwows274vxdiot6pdk32blpevq0zljhg.lambda-url.ap-south-1.on.aws/';
+
+        // 1. Map Variables for Student Home
+        let homeMap; 
+        let homeMarker; 
+        let selectedHomeLat = null; 
+        let selectedHomeLng = null;
+
+        function initHomeMap() {
+            homeMap = L.map('home-map').setView([11.7767, 77.7925], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(homeMap);
+            
+            homeMap.on('click', function(e) {
+                if(homeMarker) homeMap.removeLayer(homeMarker);
+                const houseIcon = L.divIcon({ html: '🏠', className: 'custom-bus-icon', iconSize: [30, 30], iconAnchor: [15, 15] });
+                homeMarker = L.marker([e.latlng.lat, e.latlng.lng], {icon: houseIcon}).addTo(homeMap);
+                selectedHomeLat = e.latlng.lat;
+                selectedHomeLng = e.latlng.lng;
+                document.getElementById('home-coords-display').innerText = `📍 Saved: ${selectedHomeLat.toFixed(5)}, ${selectedHomeLng.toFixed(5)}`;
+                document.getElementById('home-coords-display').style.color = "#00b09b";
+            });
+        }
+
+        // 2. Load Buses & Dynamic Icons
+        async function loadBusesIntoDropdown() {
+            try {
+                const response = await fetch(REGISTRY_API_URL);
+                const data = await response.json();
+                let buses = data.body ? (typeof data.body === 'string' ? JSON.parse(data.body) : data.body) : (typeof data === 'string' ? JSON.parse(data) : data);
+                
+                const routeBusDropdown = document.getElementById('busSelect'); 
+                const studentBusDropdown = document.getElementById('reg-stu-bus');
+                const godModeBusDropdown = document.getElementById('god-mode-bus-select'); // 👁️ NEW
+                
+                if(routeBusDropdown) routeBusDropdown.innerHTML = '<option value="" disabled selected>Select Vehicle...</option>';
+                if(studentBusDropdown) studentBusDropdown.innerHTML = '<option value="" disabled selected>Select Vehicle...</option>';
+                if(godModeBusDropdown) godModeBusDropdown.innerHTML = '<option value="" disabled selected>Select Vehicle...</option>';
+
+                buses.forEach(bus => {
+                    let icon = "🚌";
+                    if(bus.vehicle_type === "van") icon = "🚐";
+                    if(bus.vehicle_type === "auto") icon = "🛺";
+                    if(bus.vehicle_type === "car") icon = "🚗";
+
+                    const optionHtml = `<option value="${bus.bus_id}">${icon} ${bus.driver_name} (${bus.license_plate})</option>`;
+                    if(routeBusDropdown) routeBusDropdown.innerHTML += optionHtml;
+                    if(studentBusDropdown) studentBusDropdown.innerHTML += optionHtml;
+                    if(godModeBusDropdown) godModeBusDropdown.innerHTML += optionHtml; // 👁️ FILLS THE DROPDOWN
+                });
+            } catch(e) { console.error("Failed to load buses", e); }
+        }
+
+        // 3. Register Vehicle (With +91 and Vehicle Type)
+        async function registerVehicle() {
+            const busId = document.getElementById('reg-bus-id').value;
+            const license = document.getElementById('reg-license').value;
+            const driver = document.getElementById('reg-driver').value;
+            const rawPhone = document.getElementById('reg-phone').value;
+            const vType = document.getElementById('reg-type').value;
+
+            if(!busId || !driver) { alert("Vehicle ID and Driver Name are required!"); return; }
+
+            const btn = document.getElementById('btn-register');
+            btn.innerText = "⏳ Registering..."; btn.style.opacity = "0.7";
+
+            const payload = {
+                bus_id: busId, 
+                license_plate: license,
+                driver_name: driver,
+                driver_phone: "+91" + rawPhone, // 🇮🇳 AUTO-FORMATTED
+                vehicle_type: vType, 
+                status: "Active"
+            };
+
+            try {
+                const response = await fetch(REGISTRY_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if(response.ok) {
+                    alert("🎉 Vehicle Registered Successfully!");
+                    loadBusesIntoDropdown(); 
+                    
+                    // Clear the form fields
+                    document.getElementById('reg-bus-id').value = '';
+                    document.getElementById('reg-license').value = '';
+                    document.getElementById('reg-driver').value = '';
+                    document.getElementById('reg-phone').value = '';
+                }
+            } catch(e) { alert("⚠️ Network Error. Check console."); } 
+            finally { btn.innerText = "💾 Register Vehicle to Fleet"; btn.style.opacity = "1"; }
+        }
+
+        // 4. Register Student (With +91, Map Coords & Morning/Evening)
+        async function registerStudent() {
+            const name = document.getElementById('reg-stu-name').value;
+            const roll = document.getElementById('reg-stu-roll').value;
+            const rawPhoneStu = document.getElementById('reg-stu-phone').value;
+            const busId = document.getElementById('reg-stu-bus').value;
+            const mStop = document.getElementById('reg-stu-morning').value;
+            const eStop = document.getElementById('reg-stu-evening').value;
+
+            if(!name || !roll || !busId || !mStop || !eStop) { 
+                alert("⚠️ All text fields are required!"); return; 
+            }
+            if(!selectedHomeLat) {
+                alert("⚠️ Please click the map to set the Student's Home Location!"); return;
+            }
+
+            const btn = document.getElementById('btn-reg-student');
+            btn.innerText = "⏳ Registering..."; btn.style.opacity = "0.7";
+
+            const payload = {
+                name: name,
+                roll: roll,
+                phone: "+91" + rawPhoneStu, 
+                bus_id: busId, 
+                stop: mStop, 
+                morning_stop: mStop, 
+                evening_stop: eStop, 
+                // 🚨 CTO FIX: Convert Floats to Strings so AWS Python doesn't crash!
+                home_lat: String(selectedHomeLat), 
+                home_lng: String(selectedHomeLng), 
+                class: "N/A", 
+                status: "unmarked"
+            };
+
+            try {
+                const response = await fetch(SAVE_STUDENT_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if(response.ok) {
+                    alert("🎓 Student & Home Location Successfully Registered!");
+                    
+                    // Reset everything
+                    selectedHomeLat = null; selectedHomeLng = null;
+                    if(homeMarker) homeMap.removeLayer(homeMarker);
+                    document.getElementById('home-coords-display').innerText = "📍 Not Set";
+                    document.getElementById('home-coords-display').style.color = "#ff416c";
+                    document.getElementById('reg-stu-name').value = '';
+                    document.getElementById('reg-stu-roll').value = '';
+                    document.getElementById('reg-stu-phone').value = '';
+                    document.getElementById('reg-stu-morning').value = '';
+                    document.getElementById('reg-stu-evening').value = '';
+                } else {
+                    // 🚨 NEW: Catches AWS 500 Errors!
+                    alert("⚠️ AWS Server Error: The database rejected the data. Check Lambda logs.");
+                }
+            } catch(e) { alert("⚠️ Network Error. Check console."); } 
+            finally { btn.innerText = "🎓 Register Student & Home"; btn.style.opacity = "1"; }
+        }
+
+        // Boot up
+        loadBusesIntoDropdown();
     </script>
 </body>
 </html>

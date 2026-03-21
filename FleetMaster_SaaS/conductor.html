@@ -52,11 +52,21 @@
 </head>
 <body>
 
-    <div class="header">
-        <h2>FleetMaster<span>Pro</span></h2>
-        <p>Bus 1 • Morning Route</p>
-        <div class="stats-row">
-            <span id="total-count">Total: 2</span>
+    <div id="setup-section" style="padding: 20px; text-align: center; margin-top: 50px; font-family: 'Inter', sans-serif;">
+        <h2 style="color: #2c3e50;">Conductor Setup</h2>
+        <p style="color: #7f8c8d; margin-bottom: 20px;">Select your assigned vehicle for this trip:</p>
+        <select id="busSelect" style="width: 100%; padding: 15px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; margin-bottom: 20px; background: white; outline: none;">
+            <option value="">⏳ Loading fleet...</option>
+        </select>
+        <button onclick="startConductorSession()" style="width: 100%; background: linear-gradient(135deg, #00b09b, #96c93d); color: white; border: none; padding: 15px; border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 15px rgba(0, 176, 155, 0.3);">Start Attendance Session</button>
+    </div>
+
+    <div id="main-app" style="display: none;">
+        <div class="header">
+            <h2>FleetMaster<span>Pro</span></h2>
+            <p id="header-bus-name">Bus 1 • Morning Route</p>
+            <div class="stats-row">
+                <span id="total-count">Total: 2</span>
             <span id="present-count" style="color:#00e676;">Present: 0</span>
             <span id="absent-count" style="color:#ff416c;">Absent: 0</span>
         </div>
@@ -89,15 +99,59 @@
             </div>
         </div>
     </div>
-
-    <script>
+    </div> <script>
         // ⚠️ YOUR NEW AWS DATABASE URLs!
         const GET_STUDENTS_URL = 'https://mp3sdcs26o7o5sakc4x7x2o2mq0vcmur.lambda-url.ap-south-1.on.aws/';
         const SAVE_STUDENT_URL = 'https://gwows274vxdiot6pdk32blpevq0zljhg.lambda-url.ap-south-1.on.aws/';
+        
+        // ⚠️ NEW REGISTRY API URL
+        const REGISTRY_API_URL = 'https://4irmjjsu3fymjnivjytbf35hc40hkrqv.lambda-url.ap-south-1.on.aws/';
 
         let students = []; // Starts empty! The cloud will fill this.
+        let selectedBusId = null;
 
-        // 1. Download Students from AWS on Startup
+        // --- NEW: LOAD FLEET ON STARTUP ---
+        async function loadFleet() {
+            try {
+                const response = await fetch(REGISTRY_API_URL);
+                const data = await response.json();
+                let buses = data.body ? (typeof data.body === 'string' ? JSON.parse(data.body) : data.body) : (typeof data === 'string' ? JSON.parse(data) : data);
+                
+                const select = document.getElementById('busSelect');
+                select.innerHTML = '<option value="" disabled selected>Select your assigned vehicle...</option>'; 
+                
+                buses.forEach(bus => {
+                    select.innerHTML += `<option value="${bus.bus_id}">${bus.driver_name} (${bus.license_plate})</option>`;
+                });
+            } catch(e) { 
+                console.error("Failed to load fleet", e);
+                document.getElementById('busSelect').innerHTML = '<option value="">⚠️ Error loading fleet</option>';
+            }
+        }
+        loadFleet(); // Run immediately
+
+        // --- NEW: START ATTENDANCE SESSION ---
+        function startConductorSession() {
+            const selectElement = document.getElementById('busSelect');
+            if (!selectElement.value) {
+                alert("⚠️ Please select your assigned vehicle!");
+                return;
+            }
+            selectedBusId = selectElement.value;
+            const selectedText = selectElement.options[selectElement.selectedIndex].text;
+
+            // Swap Screens
+            document.getElementById('setup-section').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+            
+            // Update the top header dynamically
+            document.getElementById('header-bus-name').innerText = `Active: ${selectedText}`;
+
+            // NOW load the students from the cloud!
+            loadStudentsFromCloud();
+        }
+
+        // 1. Download Students from AWS
         async function loadStudentsFromCloud() {
             document.getElementById('student-list').innerHTML = '<div style="text-align:center; padding: 20px; color:#7f8c8d;">⏳ Loading students from AWS...</div>';
             try {
@@ -112,8 +166,11 @@
                     cloudStudents = JSON.parse(data);
                 }
 
+                // 🚨 CTO FIX: Filter the database so we ONLY keep students assigned to this exact vehicle!
+                const filteredStudents = cloudStudents.filter(s => s.bus_id === selectedBusId);
+
                 // Ensure every downloaded student defaults to "unmarked" for today's attendance
-                students = cloudStudents.map(s => ({...s, status: s.status || 'unmarked'}));
+                students = filteredStudents.map(s => ({...s, status: s.status || 'unmarked'}));
                 
                 renderStudents(); // Draw them on the screen!
             } catch (error) {
@@ -253,7 +310,8 @@
         }
 
         // Boot up the engine!
-        loadStudentsFromCloud();
+        // NOTE: loadStudentsFromCloud() is now triggered securely by startConductorSession() 
+        // loadStudentsFromCloud(); 
     </script>
 </body>
 </html>

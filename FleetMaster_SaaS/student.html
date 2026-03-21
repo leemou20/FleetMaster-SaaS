@@ -26,7 +26,8 @@
         .status-dot.live { background-color: #00e676; box-shadow: 0 0 8px #00e676; }
         .status-dot.offline { background-color: #ff416c; box-shadow: 0 0 8px #ff416c; }
         .status-time { font-size: 13px; color: #555; margin: 0; font-weight: 700;}
-        .eta-badge { background: #e8f8f5; color: #00b09b; padding: 5px 10px; border-radius: 8px; font-weight: 800; font-size: 12px; border: 1px solid #00b09b; text-align: right; }
+        .student-badge { background: #f8f9fa; color: #7f8c8d; padding: 5px 10px; border-radius: 8px; font-weight: 800; font-size: 11px; border: 1px solid #ccc; text-align: right; margin-bottom: 5px; display: none; white-space: nowrap; }
+        .eta-badge { background: #e8f8f5; color: #00b09b; padding: 5px 10px; border-radius: 8px; font-weight: 800; font-size: 12px; border: 1px solid #00b09b; text-align: right; white-space: nowrap; }
         .speed-badge { background: #fff3e0; color: #e65100; font-size: 10px; padding: 2px 6px; border-radius: 4px; display: block; margin-top: 4px; }
 
         /* TIMELINE */
@@ -47,6 +48,12 @@
         .custom-bus-icon { font-size: 30px; text-shadow: 0px 4px 10px rgba(0,0,0,0.4); text-align: center; line-height: 30px; }
         .toggle-btn { background: #e0e0e0; border: none; border-radius: 5px; width: 30px; height: 30px; font-weight: bold; cursor: pointer; }
 
+        /* 🔄 THE PLACEBO SYNC BUTTON */
+        @keyframes spinAnim { 100% { transform: rotate(360deg); } }
+        .spin-active { animation: spinAnim 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sync-btn { position: absolute; top: 90px; right: 15px; z-index: 1000; background: white; border: 2px solid #00b09b; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: 0.2s; color: #00b09b; }
+        .sync-btn:active { transform: scale(0.9); background: #f4f7f6; }
+
         /* 📱 MOBILE RESPONSIVE UPGRADE */
         @media (max-width: 600px) {
             #setup-banner, .status-card, .timeline-card { width: 92%; max-width: none; left: 4%; transform: none; box-sizing: border-box; }
@@ -63,18 +70,8 @@
 <body>
 
     <div id="setup-banner">
-        <h3>📍 Route Builder</h3>
-        <p>Click on the map to drop pins. You will be asked to name each stop.</p>
-        
-        <select id="vehicleType" class="vehicle-select">
-            <option value="walk">🚶 Walking Mode</option>
-            <option value="bike" selected>🏍️ Bike Mode</option>
-            <option value="bus">🚌 Bus Mode</option>
-        </select>
-
-        <p id="pin-count" style="font-weight:bold; color: #ff416c; margin-top:0;">Stops added: 0</p>
-        <button class="btn-lock" id="lockBtn" onclick="startTrackingMode()" style="margin-bottom: 10px;">Lock Route & Snap to Roads</button>
-        <button class="btn-lock" id="cloudBtn" onclick="downloadRouteFromAWS()" style="background: #3388ff;">☁️ Download Route from Cloud</button>
+        <h3>📡 Synchronizing Portal</h3>
+        <p id="sync-status" style="font-weight: 600; color: #00b09b;">Identifying student and downloading assigned route...</p>
     </div>
 
     <div id="tracking-ui">
@@ -86,12 +83,17 @@
                     <span class="speed-badge" id="live-speed">Speed: 0 km/h</span>
                 </div>
             </div>
-            <div class="eta-badge" id="eta-display">ETA: Calc...</div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                <div class="student-badge" id="student-status-badge">Checking Status...</div>
+                <div class="eta-badge" id="eta-display">ETA: Calc...</div>
+            </div>
         </div>
+
+        <button class="sync-btn" id="manual-sync-btn" onclick="triggerSmartSync()" title="Force Live Update">🔄</button>
 
         <div class="timeline-card" id="draggablePanel">
             <div class="timeline-header" id="panelHeader">
-                <h3 class="timeline-title">📍 Live Route Status</h3>
+                <h3 class="timeline-title">📍 Live Route Status <span style="font-size:10px; color:#a0aab2; margin-left:8px;">v3.0</span></h3>
                 <button class="toggle-btn" onclick="togglePanel()">—</button>
             </div>
             <div id="timeline-content">
@@ -116,85 +118,122 @@
         let lastLat = null;
         let lastLng = null;
         let lastPingTime = null;
-        let currentDynamicSpeedKmH = 20; // Default fallback speed so it doesn't break on first ping
+        // 🚨 V2.0 FIXES: Starts at exactly 0. Requires 2 pings. Tracks dead data.
+        let currentDynamicSpeedKmH = 0; 
+        let pingCount = 0; 
+        let stagnantTimer = 0;
 
         const busIcon = L.divIcon({ html: '🔴', className: 'custom-bus-icon', iconSize: [30, 30], iconAnchor: [15, 15] });
+
+        // ⚠️ NEW API ENDPOINTS FOR SMART SYNC
+        const GET_STUDENTS_URL = 'https://mp3sdcs26o7o5sakc4x7x2o2mq0vcmur.lambda-url.ap-south-1.on.aws/';
+        const GET_ROUTES_URL = 'https://dhkoidf5cdfqw6uavdp2hdvisa0pddun.lambda-url.ap-south-1.on.aws/';
+        const REGISTRY_API_URL = 'https://4irmjjsu3fymjnivjytbf35hc40hkrqv.lambda-url.ap-south-1.on.aws/';
+        
+        let targetBusId = null; 
+        let targetStop = null; 
+        let myHomeLat = null; 
+        let myHomeLng = null;
+        let myVehicleType = 'bus'; 
+
+        // 🚨 V3.0 LIFECYCLE VARIABLES
+        let studentRollNumber = null;
+        let targetStopLat = null;
+        let targetStopLng = null;
+        let studentStatus = 'unmarked';
+        let hasSafelyReached = false;
 
         function initMap() {
             map = L.map('map', {zoomControl: false}).setView([11.7767, 77.7925], 16);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
             L.control.zoom({ position: 'bottomright' }).addTo(map); 
-
-            map.on('click', function(e) {
-                if(document.getElementById('setup-banner').style.display === 'none') return; 
-
-                let defaultName = routeStops.length === 0 ? "Start Point" : "Stop " + (routeStops.length + 1);
-                let stopName = prompt("Enter stop name:", defaultName);
-                if (!stopName) return; 
-
-                routeStops.push({ id: routeStops.length + 1, name: stopName, lat: e.latlng.lat, lng: e.latlng.lng });
-                routeCoordinates.push([e.latlng.lat, e.latlng.lng]);
-
-                L.circleMarker([e.latlng.lat, e.latlng.lng], { radius: 6, color: '#3388ff', fillColor: 'white', fillOpacity: 1 })
-                 .addTo(map).bindPopup(stopName).openPopup();
-
-                document.getElementById('pin-count').innerText = `Stops added: ${routeStops.length}`;
-            });
+            
+            // Note: Removed the map click listener because Parents shouldn't build routes!
         }
 
-        // --- NEW CLOUD SYNC ENGINE ---
-        async function downloadRouteFromAWS() {
-            const btn = document.getElementById('cloudBtn');
-            btn.innerText = "⏳ Downloading...";
+        // --- 🚀 THE 20-YEAR CTO SMART SYNC ENGINE ---
+        async function autoInitializeParentPortal() {
+            const statusText = document.getElementById('sync-status');
+            
+            // 1. Who is logged in?
+            let userId = localStorage.getItem('fleetmaster_user_id');
+            if(!userId) {
+                // Fallback for testing if they didn't come from index.html
+                userId = prompt("Security Check: Enter Student Roll Number to sync map:");
+                if(!userId) { statusText.innerText = "Authentication Failed."; return; }
+            }
+
             try {
-                // ⚠️ Your specific Lambda "Out Door" URL
-                const res = await fetch('https://dhkoidf5cdfqw6uavdp2hdvisa0pddun.lambda-url.ap-south-1.on.aws/');
-                const responseData = await res.json();
+                // 2. Fetch all students to find THIS student
+                statusText.innerText = "Locating student assignment...";
+                let res = await fetch(GET_STUDENTS_URL);
+                let data = await res.json();
+                let allStudents = data.body ? (typeof data.body === 'string' ? JSON.parse(data.body) : data.body) : (typeof data === 'string' ? JSON.parse(data) : data);
                 
-                // 📦 THE FIX: Unpack the AWS envelope to get the actual array!
-                let allRoutes = responseData;
-                if (responseData.body) {
-                    allRoutes = JSON.parse(responseData.body);
-                } else if (typeof responseData === 'string') {
-                    allRoutes = JSON.parse(responseData);
+                const myStudent = allStudents.find(s => s.roll === userId);
+                if(!myStudent) { 
+                    statusText.innerText = `Student ID ${userId} not found in database. Contact Admin.`; 
+                    statusText.style.color = "#ff416c"; return; 
                 }
                 
-                // 🛡️ THE FILTER: Ignore junk test data! Only keep routes with 2+ stops.
-                const validRoutes = allRoutes.filter(route => route.stops && route.stops.length >= 2);
+                targetBusId = myStudent.bus_id; // 🧠 WE FOUND THEIR BUS!
+                myHomeLat = myStudent.home_lat; // 🏠 SAVED HOME COORDS
+                myHomeLng = myStudent.home_lng;
+                studentRollNumber = myStudent.roll; // 🚨 V3.0 Save Roll Number
                 
-                if(validRoutes.length === 0) { 
-                    alert("No valid routes found in database! Go to Admin Dashboard and save one."); 
-                    btn.innerText = "☁️ Download Route from Cloud"; 
-                    return; 
+                // 🌅 Time-of-Day Routing Logic (Before 2:00 PM = Morning, After = Evening)
+                const currentHour = new Date().getHours();
+                targetStop = currentHour < 14 ? myStudent.morning_stop : myStudent.evening_stop;
+
+                // 🛺 Fetch Vehicle Type from Registry
+                statusText.innerText = `Fetching vehicle details...`;
+                let regRes = await fetch(REGISTRY_API_URL);
+                let regData = await regRes.json();
+                let allBuses = regData.body ? (typeof regData.body === 'string' ? JSON.parse(regData.body) : regData.body) : (typeof regData === 'string' ? JSON.parse(regData) : regData);
+                const myBus = allBuses.find(b => b.bus_id === targetBusId);
+                if(myBus && myBus.vehicle_type) myVehicleType = myBus.vehicle_type;
+
+                // 3. Fetch routes to find THIS BUS'S route
+                statusText.innerText = `Downloading route for ${targetBusId}...`;
+                res = await fetch(GET_ROUTES_URL);
+                data = await res.json();
+                let allRoutes = data.body ? (typeof data.body === 'string' ? JSON.parse(data.body) : data.body) : (typeof data === 'string' ? JSON.parse(data) : data);
+                
+                // 🛡️ THE FILTER: Get the specific route for their assigned bus
+                const myRoute = allRoutes.find(r => r.assigned_bus === targetBusId && r.stops && r.stops.length >= 2);
+                
+                if(!myRoute) { 
+                    statusText.innerText = `No route has been drawn by Admin for ${targetBusId} yet.`; 
+                    statusText.style.color = "#ff416c"; return; 
                 }
-                
-                // Grab the very last valid route in the list
-                const cloudRoute = validRoutes[validRoutes.length - 1]; 
-                
-                // Overwrite the local arrays with the cloud data
-                routeStops = cloudRoute.stops;
+
+                // 4. Draw the cloud stops on the map
+                routeStops = myRoute.stops;
                 routeCoordinates = [];
-                
-                // Draw the cloud stops on the map
                 routeStops.forEach(stop => {
                     routeCoordinates.push([stop.lat, stop.lng]);
                     L.circleMarker([stop.lat, stop.lng], { radius: 6, color: '#3388ff', fillColor: 'white', fillOpacity: 1 })
                      .addTo(map).bindPopup(stop.name).openPopup();
                 });
                 
-                // Update the UI
-                document.getElementById('pin-count').innerText = `Cloud Route Loaded: ${cloudRoute.route_name}`;
-                btn.innerText = "✅ Route Downloaded";
-                btn.style.background = "#00e676";
+                // 🚨 V3.0 Extract EXACT coordinates of the assigned stop for geofencing
+                const exactStop = routeStops.find(s => s.name === targetStop);
+                if (exactStop) {
+                    targetStopLat = exactStop.lat;
+                    targetStopLng = exactStop.lng;
+                }
                 
                 // Zoom map to fit the downloaded route
                 map.fitBounds(routeCoordinates, { padding: [50, 50] });
                 
+                // 5. Automatically start the physics tracking engine!
+                statusText.innerText = "Route synced. Starting Live Radar...";
+                setTimeout(startTrackingMode, 1000); // 1 second delay so they see the success message
+                
             } catch (e) {
                 console.error(e);
-                alert("Error downloading route from AWS! Check console.");
-                btn.innerText = "☁️ Download Route from Cloud";
-                btn.style.background = "#ff416c";
+                statusText.innerText = "Network Error during synchronization.";
+                statusText.style.color = "#ff416c";
             }
         }
         // ------------------------------
@@ -213,36 +252,82 @@
         }
 
         async function startTrackingMode() {
-            if (routeStops.length < 2) { alert("Add at least 2 stops!"); return; }
+            if (routeStops.length < 2) return;
 
-            document.getElementById('lockBtn').innerText = "Snapping to roads...";
-            
-            // Set vehicle icon only, no hardcoded speeds!
-            const vehicleType = document.getElementById('vehicleType').value;
-            if (vehicleType === 'walk') busIcon.options.html = '🚶';
-            else if (vehicleType === 'bike') busIcon.options.html = '🏍️';
+            // 1. Force the DYNAMIC Vehicle Icon!
+            if (myVehicleType === 'van') busIcon.options.html = '🚐';
+            else if (myVehicleType === 'auto') busIcon.options.html = '🛺';
+            else if (myVehicleType === 'car') busIcon.options.html = '🚗';
             else busIcon.options.html = '🚌';
 
+            // 2. Snap to roads
             await fetchRoadRoute();
 
+            // 3. Swap UI
             document.getElementById('setup-banner').style.display = 'none';
             document.getElementById('tracking-ui').style.display = 'block';
             map.getContainer().style.cursor = ''; 
 
+            // 4. Draw the Blue Route Line
             polylineLayer = L.polyline(roadCoordinates, { color: '#1e88e5', weight: 6, opacity: 0.9 }).addTo(map);
 
+            // 5. 📍 HIGHLIGHT THE STUDENT'S SPECIFIC STOP & HOME
+            routeStops.forEach(stop => {
+                if(stop.name === targetStop) {
+                    L.circleMarker([stop.lat, stop.lng], { radius: 10, color: '#ff9800', fillColor: '#ff9800', fillOpacity: 0.9 })
+                     .addTo(map).bindPopup("<b style='color:#ff9800;'>📍 YOUR ASSIGNED STOP</b><br>" + stop.name).openPopup();
+                }
+            });
+
+            if (myHomeLat && myHomeLng) {
+                const houseIcon = L.divIcon({ html: '🏠', className: 'custom-bus-icon', iconSize: [30, 30], iconAnchor: [15, 15] });
+                L.marker([myHomeLat, myHomeLng], {icon: houseIcon}).addTo(map).bindPopup("<b>🏠 Your Home</b>").openPopup();
+            }
+
+            // 6. Boot the Physics Engine
             renderTimeline(-1, 0, 0);
             fetchBusLocation();
+            fetchAttendanceStatus(); // 🚨 V3.0 Immediate Check
             trackingInterval = setInterval(fetchBusLocation, 5000);
+            setInterval(fetchAttendanceStatus, 10000); // 🚨 V3.0 Poll Attendance every 10s
         }
 
-        function calculateTimeStr(distanceMeters) {
+        // 🚨 V3.0 FETCH ATTENDANCE ENGINE
+        async function fetchAttendanceStatus() {
+            if (hasSafelyReached || !studentRollNumber) return;
+            try {
+                let res = await fetch(GET_STUDENTS_URL);
+                let data = await res.json();
+                let allStudents = data.body ? (typeof data.body === 'string' ? JSON.parse(data.body) : data.body) : (typeof data === 'string' ? JSON.parse(data) : data);
+                
+                const me = allStudents.find(s => s.roll === studentRollNumber);
+                if (me) {
+                    studentStatus = me.status;
+                    const badge = document.getElementById('student-status-badge');
+                    badge.style.display = 'block';
+
+                    if (studentStatus === 'absent') {
+                        badge.innerText = '⚠️ Marked Absent';
+                        badge.style.background = '#fff4f6'; badge.style.color = '#ff416c'; badge.style.borderColor = '#ff416c';
+                    } else if (studentStatus === 'present') {
+                        badge.innerText = '🟢 Boarded Bus';
+                        badge.style.background = '#f4fff8'; badge.style.color = '#00b09b'; badge.style.borderColor = '#00b09b';
+                    } else {
+                        badge.innerText = '⏳ Not Boarded Yet';
+                        badge.style.background = '#f8f9fa'; badge.style.color = '#7f8c8d'; badge.style.borderColor = '#ccc';
+                    }
+                }
+            } catch(e) { console.log("Attendance Sync Error", e); }
+        }
+
+        function calculateTimeStr(distanceMeters, isOffline) {
+            if (isOffline) return "--";
+            if (currentDynamicSpeedKmH < 2 || pingCount < 2) return "Awaiting Movement";
+
             const distanceKm = distanceMeters / 1000;
-            // NEW: Use the dynamically calculated speed!
             const timeHours = distanceKm / currentDynamicSpeedKmH;
             const totalMins = timeHours * 60;
             
-            // NEW: Fix the 13000m bug. If ETA is over 10 hours, say Calculating.
             if (totalMins > 600) return "Calculating...";
 
             const mins = Math.floor(totalMins);
@@ -257,8 +342,34 @@
             return `${mins}m ${secs}s`;
         }
 
-        function updateTimelineLogic(busLat, busLng) {
-            if (isTripComplete) return;
+        function updateTimelineLogic(busLat, busLng, isOffline) {
+            if (isTripComplete || hasSafelyReached) return;
+
+            // 🚨 V3.0 GEOFENCING: Did they reach their target stop?
+            if (studentStatus === 'present' && targetStopLat && targetStopLng) {
+                const distToDropoff = map.distance([busLat, busLng], [targetStopLat, targetStopLng]);
+                if (distToDropoff < 40) { // 40 meter arrival radius
+                    hasSafelyReached = true;
+                    isTripComplete = true; // Stop ETA calculations
+                    
+                    const badge = document.getElementById('student-status-badge');
+                    badge.innerText = '🎉 SAFELY REACHED DESTINATION';
+                    badge.style.background = '#f4fff8'; badge.style.color = '#00e676'; badge.style.borderColor = '#00e676';
+                    
+                    document.getElementById('eta-display').innerText = "Journey Complete";
+                    document.getElementById('eta-display').style.color = "#00e676";
+                    document.getElementById('eta-display').style.borderColor = "#00e676";
+                    
+                    document.getElementById('live-speed').innerText = "Stopped";
+                    document.getElementById('indicator').className = 'status-dot';
+                    
+                    renderTimeline(routeStops.length, busLat, busLng, false); 
+                    
+                    // Alert the parent dynamically!
+                    setTimeout(() => alert("🎉 Your child has safely reached their destination!"), 500);
+                    return;
+                }
+            }
 
             let closestStopIndex = 0; let shortestDistance = Infinity;
 
@@ -272,19 +383,32 @@
                 isTripComplete = true;
                 document.getElementById('eta-display').innerText = "🎉 TRIP COMPLETED";
                 document.getElementById('eta-display').style.color = "#00e676";
+                document.getElementById('eta-display').style.borderColor = "#00e676";
                 document.getElementById('live-speed').innerText = "Stopped";
                 document.getElementById('indicator').className = 'status-dot';
-                renderTimeline(routeStops.length, busLat, busLng); 
+                renderTimeline(routeStops.length, busLat, busLng, false); 
                 return;
             }
 
-            renderTimeline(closestStopIndex, busLat, busLng);
+            renderTimeline(closestStopIndex, busLat, busLng, isOffline);
 
             const distToFinal = map.distance([busLat, busLng], [finalStop.lat, finalStop.lng]);
-            document.getElementById('eta-display').innerText = `ETA: ${calculateTimeStr(distToFinal)}`;
+            const etaBadge = document.getElementById('eta-display');
+            
+            // 🚨 V2.0 UI UPDATE: Strict Offline & Waiting rules
+            if (isOffline) {
+                etaBadge.innerText = "Trip Offline";
+                etaBadge.style.color = "#ff416c"; etaBadge.style.borderColor = "#ff416c";
+            } else if (currentDynamicSpeedKmH < 2 || pingCount < 2) {
+                etaBadge.innerText = "Awaiting Movement";
+                etaBadge.style.color = "#ff9800"; etaBadge.style.borderColor = "#ff9800";
+            } else {
+                etaBadge.innerText = `ETA: ${calculateTimeStr(distToFinal, false)}`;
+                etaBadge.style.color = "#00b09b"; etaBadge.style.borderColor = "#00b09b";
+            }
         }
 
-        function renderTimeline(currentStopIndex, busLat, busLng) {
+        function renderTimeline(currentStopIndex, busLat, busLng, isOffline) {
             const listDiv = document.getElementById('timeline-list');
             listDiv.innerHTML = ''; 
 
@@ -297,7 +421,7 @@
                     icon = '📍'; textClass = 'current'; 
                 } else {
                     const distToStop = map.distance([busLat, busLng], [stop.lat, stop.lng]);
-                    etaHtml = `<span class="stop-eta">${calculateTimeStr(distToStop)}</span>`;
+                    etaHtml = `<span class="stop-eta">${calculateTimeStr(distToStop, isOffline)}</span>`;
                 }
 
                 listDiv.innerHTML += `
@@ -311,59 +435,120 @@
             });
         }
 
+        // 🚦 Prevent Network Traffic Jams
+        let isFetchingGPS = false;
+
         async function fetchBusLocation() {
-            if (isTripComplete) return;
+            if (isTripComplete || isFetchingGPS) return;
+            isFetchingGPS = true; // Lock the network
 
             try {
                 const response = await fetch(baseApiUrl);
                 const data = await response.json();
                 
-                if (data.lat && data.lng) {
-                    const newPingTime = new Date(data.timestamp).getTime();
-                    const now = Date.now();
-                    
-                    if (now - newPingTime > 15000) {
-                        document.getElementById('indicator').className = 'status-dot offline';
-                        document.getElementById('time-text').innerText = "Driver Offline / Ended Trip";
-                        document.getElementById('live-speed').innerText = "Speed: 0 km/h";
-                        return;
-                    }
+                let allGps = data.body ? (typeof data.body === 'string' ? JSON.parse(data.body) : data.body) : (typeof data === 'string' ? JSON.parse(data) : data);
+                let busList = Array.isArray(allGps) ? allGps : (allGps.Items ? allGps.Items : [allGps]);
+                let history = busList.filter(b => String(b.bus_id).trim() === String(targetBusId).trim());
+                
+                if (history.length === 0) {
+                    isFetchingGPS = false; 
+                    return; 
+                }
+                
+                history.sort((a, b) => {
+                    let timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                    let timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                    return timeB - timeA;
+                });
+                
+                let myBus = history[0];
 
-                    const newLatLng = [data.lat, data.lng];
+                if (!myBus || !myBus.lat) {
+                    isFetchingGPS = false; 
+                    return; 
+                }
 
-                    // --- NEW: DYNAMIC SPEED CALCULATION ENGINE ---
-                    if (lastLat && lastLng && lastPingTime) {
+                const lat = parseFloat(myBus.lat);
+                const lng = parseFloat(myBus.lng);
+                const newPingTime = myBus.timestamp ? new Date(myBus.timestamp).getTime() : Date.now();
+                const newLatLng = [lat, lng];
+
+                pingCount++;
+
+                // 🚨 V3.5 ESCALATION ENGINE (Explicit vs Unexpected Offline)
+                let explicitOffline = (myBus.trip_status === "OFFLINE"); // Caught the Kill Signal!
+
+                if (lastPingTime === newPingTime) {
+                    stagnantTimer += 5000; // Data stalled
+                } else {
+                    stagnantTimer = 0; // Fresh data
+                }
+
+                const isSignalLost = stagnantTimer >= 120000; // 2+ mins dead
+                const isWeakSignal = stagnantTimer >= 15000 && !isSignalLost && !explicitOffline; // 15s to 2 mins
+                
+                const isTrulyOffline = explicitOffline || isSignalLost;
+
+                if (explicitOffline) {
+                    currentDynamicSpeedKmH = 0;
+                    document.getElementById('indicator').className = 'status-dot offline';
+                    document.getElementById('time-text').innerText = `⚪ Trip Ended`;
+                    document.getElementById('live-speed').innerText = `Vehicle Offline`;
+                } else if (isSignalLost) {
+                    currentDynamicSpeedKmH = 0;
+                    document.getElementById('indicator').className = 'status-dot offline';
+                    const mins = Math.floor(stagnantTimer / 60000);
+                    document.getElementById('time-text').innerText = `🔴 Signal Lost (${mins}m ago)`;
+                    document.getElementById('live-speed').innerText = `Speed: 0 km/h`;
+                } else if (isWeakSignal) {
+                    currentDynamicSpeedKmH = 0;
+                    document.getElementById('indicator').className = 'status-dot'; // Reverts to Orange
+                    document.getElementById('time-text').innerText = `🟠 Weak Signal...`;
+                    document.getElementById('live-speed').innerText = `Reconnecting...`;
+                } else {
+                    // 🟢 THE PHYSICS ENGINE (Only runs if we have 2 fresh pings!)
+                    if (lastLat && lastLng && lastPingTime && pingCount >= 2) {
                         const distMeters = map.distance([lastLat, lastLng], newLatLng);
-                        const timeDiffHours = (newPingTime - lastPingTime) / 3600000; // milliseconds to hours
-                        
-                        if (timeDiffHours > 0 && timeDiffHours < 1) { // Ignore massive time jumps
-                            let instantSpeed = (distMeters / 1000) / timeDiffHours;
-                            
-                            // Failsafes: Don't let GPS jumps cause infinite speed or zero speed errors
-                            if (instantSpeed < 3) instantSpeed = 3; // Prevent Infinity ETA when stopped at red light
-                            if (instantSpeed > 120) instantSpeed = 120; // Prevent supersonic GPS glitches
-                            
-                            // Moving average for smooth ETAs
+                        const timeDiffHours = (newPingTime - lastPingTime) / 3600000;
+                        if (timeDiffHours > 0 && timeDiffHours < 1) {
+                            let instantSpeed = 0;
+                            if (distMeters > 15) instantSpeed = (distMeters / 1000) / timeDiffHours;
+                            if (instantSpeed > 120) instantSpeed = 120; 
                             currentDynamicSpeedKmH = (currentDynamicSpeedKmH * 0.5) + (instantSpeed * 0.5); 
+                            if (currentDynamicSpeedKmH < 2) currentDynamicSpeedKmH = 0;
                         }
                     }
                     
-                    // Save for next ping
-                    lastLat = newLatLng[0];
-                    lastLng = newLatLng[1];
-                    lastPingTime = newPingTime;
-                    // ----------------------------------------------
-
                     document.getElementById('indicator').className = 'status-dot live';
-                    document.getElementById('time-text').innerText = `Live | Ping: ${new Date(data.timestamp).toLocaleTimeString()}`;
+                    document.getElementById('time-text').innerText = `Live Radar Active`;
                     document.getElementById('live-speed').innerText = `Live Speed: ${Math.round(currentDynamicSpeedKmH)} km/h`;
-
-                    if (!busMarker) busMarker = L.marker(newLatLng, {icon: busIcon}).addTo(map);
-                    else busMarker.setLatLng(newLatLng);
-                    
-                    updateTimelineLogic(data.lat, data.lng);
                 }
-            } catch (error) { console.error("Signal lost"); }
+
+                lastLat = lat; lastLng = lng; lastPingTime = newPingTime;
+
+                // FIX THE MISSING ICON GLITCH & DRAW MARKER
+                let displayIcon = '🚌';
+                if (myVehicleType === 'van') displayIcon = '🚐';
+                else if (myVehicleType === 'auto') displayIcon = '🛺';
+                else if (myVehicleType === 'car') displayIcon = '🚗';
+                
+                const dynamicIcon = L.divIcon({ html: displayIcon, className: 'custom-bus-icon', iconSize: [30, 30], iconAnchor: [15, 15] });
+
+                if (!busMarker) {
+                    busMarker = L.marker(newLatLng, {icon: dynamicIcon, zIndexOffset: 1000}).addTo(map);
+                } else {
+                    busMarker.setLatLng(newLatLng);
+                    busMarker.setIcon(dynamicIcon);
+                }
+                
+                // TIMELINE & UNLOCK
+                updateTimelineLogic(lat, lng, isOffline);
+                isFetchingGPS = false; 
+
+            } catch (error) { 
+                console.error("Signal lost", error); 
+                isFetchingGPS = false; 
+            }
         }
 
         // Draggable Logic
@@ -396,7 +581,27 @@
             }
         }
 
+        // 🔄 THE PLACEBO SYNC ENGINE
+        function triggerSmartSync() {
+            const btn = document.getElementById('manual-sync-btn');
+            
+            // 1. The Dopamine Spin
+            btn.classList.add('spin-active');
+            setTimeout(() => btn.classList.remove('spin-active'), 500);
+
+            // 2. The Physical Camera Snap (Illusion of immediate action)
+            if (busMarker) {
+                map.flyTo(busMarker.getLatLng(), 17, { animate: true, duration: 0.5 });
+            }
+
+            // 3. The Safe Network Call (Ignored if already fetching)
+            if(!isFetchingGPS) {
+                fetchBusLocation();
+            }
+        }
+
         initMap(); 
+        autoInitializeParentPortal(); 
     </script>
 </body>
 </html>
